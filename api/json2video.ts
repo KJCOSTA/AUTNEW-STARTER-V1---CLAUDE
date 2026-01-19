@@ -15,11 +15,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { action, scenes, trilha } = req.body
 
   try {
-    if (action === 'test') {
+    if (action === 'test' || action === 'test-connection') {
       const response = await fetch(`${JSON2VIDEO_API_URL}/account`, {
         headers: { 'x-api-key': apiKey },
       })
-      return res.status(response.ok ? 200 : 400).json({ ok: response.ok })
+      if (response.ok) {
+        return res.status(200).json({ success: true, connected: true, message: 'JSON2Video conectado!' })
+      } else {
+        return res.status(400).json({ success: false, connected: false, message: 'Erro na conexão com JSON2Video' })
+      }
     }
 
     // Build video project from scenes

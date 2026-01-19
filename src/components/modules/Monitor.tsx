@@ -109,7 +109,9 @@ const AI_PROVIDERS = {
 const apiIcons: Record<string, typeof Zap> = {
   Gemini: Brain,
   OpenAI: Zap,
+  Claude: Brain,
   ElevenLabs: Mic,
+  'Edge TTS': Mic,
   JSON2Video: Video,
   YouTube: Youtube,
 }
@@ -167,26 +169,101 @@ export function Monitor() {
     checkStatus()
   }, [])
 
+  // Real API test functions
+  const testRealAPI = async (apiName: string): Promise<{ success: boolean; message: string }> => {
+    const apiEndpoints: Record<string, { url: string; body: object }> = {
+      Gemini: {
+        url: '/api/gemini',
+        body: { action: 'test-connection' }
+      },
+      OpenAI: {
+        url: '/api/openai',
+        body: { action: 'test-connection' }
+      },
+      Claude: {
+        url: '/api/claude',
+        body: { action: 'test-connection' }
+      },
+      ElevenLabs: {
+        url: '/api/elevenlabs',
+        body: { action: 'test-connection' }
+      },
+      'Edge TTS': {
+        url: '/api/edge-tts',
+        body: { action: 'test-connection' }
+      },
+      JSON2Video: {
+        url: '/api/json2video',
+        body: { action: 'test-connection' }
+      },
+      YouTube: {
+        url: '/api/youtube/status',
+        body: {}
+      },
+    }
+
+    const endpoint = apiEndpoints[apiName]
+    if (!endpoint) {
+      return { success: false, message: 'API não configurada' }
+    }
+
+    try {
+      const response = await fetch(endpoint.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(endpoint.body),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Check for specific success indicators
+        if (data.success === true || data.status === 'ok' || data.connected === true) {
+          return { success: true, message: data.message || 'Conectado!' }
+        }
+        // Check for configuration needed
+        if (data.needsConfiguration || data.configured === false) {
+          return { success: false, message: data.message || 'API Key não configurada' }
+        }
+        // Default success if response is OK
+        return { success: true, message: 'Conectado!' }
+      } else {
+        return { success: false, message: data.error || data.message || 'Erro de conexão' }
+      }
+    } catch (error) {
+      return { success: false, message: 'Erro de rede - API indisponível' }
+    }
+  }
+
   const testConnection = async (apiName: string) => {
     setTesting(apiName)
     try {
-      await new Promise((r) => setTimeout(r, 1500))
+      let result: { success: boolean; message: string }
+
+      if (isTestMode) {
+        // In test mode, just simulate
+        await new Promise((r) => setTimeout(r, 800))
+        result = { success: true, message: '[TEST] Simulado com sucesso' }
+      } else {
+        // Real API test
+        result = await testRealAPI(apiName)
+      }
 
       const newStatus = apiStatus.map((api) =>
         api.name === apiName
           ? {
               ...api,
-              status: (isTestMode ? 'online' : Math.random() > 0.2 ? 'online' : 'offline') as APIStatus,
+              status: (result.success ? 'online' : 'offline') as APIStatus,
               lastCheck: new Date().toISOString(),
-              message: isTestMode ? '[MOCK] Simulado' : 'Conexão testada',
+              message: result.message,
             }
           : api
       )
 
       setAPIStatus(newStatus)
       addToast({
-        type: 'success',
-        message: `${apiName}: ${isTestMode ? '[TEST] Simulado' : 'Conectado!'}`,
+        type: result.success ? 'success' : 'error',
+        message: `${apiName}: ${result.message}`,
       })
     } catch {
       const newStatus = apiStatus.map((api) =>

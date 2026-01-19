@@ -149,7 +149,9 @@ const initialConfiguracoes: Configuracoes = {
 const initialAPIStatus: APIStatusInfo[] = [
   { name: 'Gemini', status: 'unknown', lastCheck: '' },
   { name: 'OpenAI', status: 'unknown', lastCheck: '' },
+  { name: 'Claude', status: 'unknown', lastCheck: '' },
   { name: 'ElevenLabs', status: 'unknown', lastCheck: '' },
+  { name: 'Edge TTS', status: 'unknown', lastCheck: '' },
   { name: 'JSON2Video', status: 'unknown', lastCheck: '' },
   { name: 'YouTube', status: 'unknown', lastCheck: '' },
 ]

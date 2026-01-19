@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { action, ...data } = req.body
 
   try {
-    if (action === 'test') {
+    if (action === 'test' || action === 'test-connection') {
       // Simple test request
       const response = await fetch(ANTHROPIC_API_URL, {
         method: 'POST',
@@ -30,7 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           messages: [{ role: 'user', content: 'Diga "OK" em uma palavra.' }],
         }),
       })
-      return res.status(response.ok ? 200 : 400).json({ ok: response.ok })
+      if (response.ok) {
+        return res.status(200).json({ success: true, connected: true, message: 'Claude conectado!' })
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        return res.status(400).json({ success: false, connected: false, message: errorData.error?.message || 'Erro na conexão com Claude' })
+      }
     }
 
     if (action === 'deep-research') {
