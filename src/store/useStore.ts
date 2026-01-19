@@ -10,6 +10,7 @@ import type {
   EntregaData,
   CanalData,
   Diretrizes,
+  DiretrizPerfil,
   Configuracoes,
   Producao,
   APIStatusInfo,
@@ -22,6 +23,8 @@ const initialGatilho: GatilhoData = {
   duracao: '5-10min',
   gatilhosEmocionais: [],
   observacoesEspeciais: '',
+  concorrentes: [],
+  // Deprecated fields - keeping for compatibility
   concorrenteLink: '',
   concorrenteTranscricao: '',
   concorrenteMetadados: null,
@@ -80,6 +83,15 @@ const initialDiretrizes: Diretrizes = {
   },
 }
 
+// Default diretriz profile
+const defaultDiretrizPerfil: DiretrizPerfil = {
+  id: 'default',
+  nome: 'Mundo da Prece - Padrão',
+  descricao: 'Diretrizes padrão para o canal Mundo da Prece',
+  criadoEm: new Date().toISOString(),
+  conteudo: initialDiretrizes,
+}
+
 const initialConfiguracoes: Configuracoes = {
   modo: 'mvp',
   appMode: 'test',
@@ -134,15 +146,88 @@ export const useStore = create<AppState>()(
       entrega: null,
       setEntrega: (data: EntregaData) => set({ entrega: data }),
 
-      // Canal data
+      // Canal data - multiple channels support
       canal: initialCanal,
       setCanal: (data: Partial<CanalData>) =>
         set((state) => ({ canal: { ...state.canal, ...data } })),
 
-      // Guidelines
+      canais: [initialCanal],
+      canalAtivo: 'Mundo da Prece',
+
+      addCanal: (canal: CanalData) =>
+        set((state) => ({
+          canais: [...state.canais, canal],
+          canal: canal,
+          canalAtivo: canal.nome,
+        })),
+
+      removeCanal: (nome: string) =>
+        set((state) => {
+          const newCanais = state.canais.filter((c) => c.nome !== nome)
+          const newAtivo = newCanais.length > 0 ? newCanais[0].nome : null
+          return {
+            canais: newCanais,
+            canalAtivo: newAtivo,
+            canal: newCanais.length > 0 ? newCanais[0] : initialCanal,
+          }
+        }),
+
+      setActiveCanal: (nome: string) =>
+        set((state) => {
+          const canal = state.canais.find((c) => c.nome === nome)
+          if (canal) {
+            return { canalAtivo: nome, canal }
+          }
+          return {}
+        }),
+
+      // Guidelines - multiple profiles support
       diretrizes: initialDiretrizes,
       setDiretrizes: (data: Partial<Diretrizes>) =>
         set((state) => ({ diretrizes: { ...state.diretrizes, ...data } })),
+
+      diretrizPerfis: [defaultDiretrizPerfil],
+      diretrizAtiva: 'default',
+
+      addDiretrizPerfil: (perfil: DiretrizPerfil) =>
+        set((state) => ({
+          diretrizPerfis: [...state.diretrizPerfis, perfil],
+          diretrizAtiva: perfil.id,
+          diretrizes: perfil.conteudo,
+        })),
+
+      removeDiretrizPerfil: (id: string) =>
+        set((state) => {
+          if (id === 'default') return {} // Can't delete default
+          const newPerfis = state.diretrizPerfis.filter((p) => p.id !== id)
+          const newAtiva = state.diretrizAtiva === id ? 'default' : state.diretrizAtiva
+          const activePerfil = newPerfis.find((p) => p.id === newAtiva)
+          return {
+            diretrizPerfis: newPerfis,
+            diretrizAtiva: newAtiva,
+            diretrizes: activePerfil?.conteudo || initialDiretrizes,
+          }
+        }),
+
+      setActiveDiretriz: (id: string) =>
+        set((state) => {
+          const perfil = state.diretrizPerfis.find((p) => p.id === id)
+          if (perfil) {
+            return { diretrizAtiva: id, diretrizes: perfil.conteudo }
+          }
+          return {}
+        }),
+
+      updateDiretrizPerfil: (id: string, data: Partial<DiretrizPerfil>) =>
+        set((state) => ({
+          diretrizPerfis: state.diretrizPerfis.map((p) =>
+            p.id === id ? { ...p, ...data } : p
+          ),
+          // If updating active profile's content, also update diretrizes
+          ...(state.diretrizAtiva === id && data.conteudo
+            ? { diretrizes: { ...state.diretrizes, ...data.conteudo } }
+            : {}),
+        })),
 
       // Settings
       configuracoes: initialConfiguracoes,
@@ -205,8 +290,12 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({
         historico: state.historico,
         diretrizes: state.diretrizes,
+        diretrizPerfis: state.diretrizPerfis,
+        diretrizAtiva: state.diretrizAtiva,
         configuracoes: state.configuracoes,
         canal: state.canal,
+        canais: state.canais,
+        canalAtivo: state.canalAtivo,
       }),
     }
   )

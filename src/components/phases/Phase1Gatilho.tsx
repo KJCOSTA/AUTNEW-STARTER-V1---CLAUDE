@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap,
   Link2,
@@ -13,6 +13,10 @@ import {
   Tag,
   ExternalLink,
   User,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -27,7 +31,8 @@ import {
   CardDescription,
   CardContent,
 } from '../ui'
-import type { ContentType, DurationType, EmotionalTrigger } from '../../types'
+import { fetchYouTubeMetadata } from '../../services/api'
+import type { ContentType, DurationType, EmotionalTrigger, ConcorrenteData } from '../../types'
 
 const contentTypeOptions = [
   { value: 'oracao-guiada', label: 'Oração Guiada' },
@@ -61,8 +66,11 @@ interface Phase1GatilhoProps {
 }
 
 export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
-  const { gatilho, setGatilho, addToast, canal } = useStore()
-  const [extracting, setExtracting] = useState(false)
+  const { gatilho, setGatilho, addToast, canal, configuracoes } = useStore()
+  const [extractingId, setExtractingId] = useState<string | null>(null)
+  const [expandedConcorrente, setExpandedConcorrente] = useState<string | null>(null)
+
+  const isTestMode = configuracoes.appMode === 'test'
 
   const handleTriggerToggle = (trigger: EmotionalTrigger) => {
     const current = gatilho.gatilhosEmocionais
@@ -77,38 +85,67 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
     }
   }
 
-  const extractMetadata = async () => {
-    if (!gatilho.concorrenteLink) {
+  // Add new competitor
+  const addConcorrente = () => {
+    const newConcorrente: ConcorrenteData = {
+      id: Date.now().toString(),
+      link: '',
+      transcricao: '',
+      metadados: null,
+    }
+    setGatilho({
+      concorrentes: [...gatilho.concorrentes, newConcorrente],
+    })
+    setExpandedConcorrente(newConcorrente.id)
+  }
+
+  // Remove competitor
+  const removeConcorrente = (id: string) => {
+    setGatilho({
+      concorrentes: gatilho.concorrentes.filter((c) => c.id !== id),
+    })
+  }
+
+  // Update competitor field
+  const updateConcorrente = (id: string, data: Partial<ConcorrenteData>) => {
+    setGatilho({
+      concorrentes: gatilho.concorrentes.map((c) =>
+        c.id === id ? { ...c, ...data } : c
+      ),
+    })
+  }
+
+  // Extract metadata for a competitor
+  const extractMetadata = async (concorrente: ConcorrenteData) => {
+    if (!concorrente.link) {
       addToast({ type: 'warning', message: 'Cole o link do vídeo primeiro' })
       return
     }
 
-    setExtracting(true)
+    setExtractingId(concorrente.id)
     try {
-      const response = await fetch('/api/youtube/metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: gatilho.concorrenteLink }),
+      const data = await fetchYouTubeMetadata(concorrente.link)
+      updateConcorrente(concorrente.id, { metadados: data })
+      addToast({
+        type: 'success',
+        message: isTestMode
+          ? '[TEST] Metadados simulados extraídos!'
+          : 'Metadados extraídos com sucesso!'
       })
-
-      if (!response.ok) throw new Error('Erro ao extrair metadados')
-
-      const data = await response.json()
-      setGatilho({ concorrenteMetadados: data })
-      addToast({ type: 'success', message: 'Metadados extraídos com sucesso!' })
     } catch {
       addToast({
         type: 'error',
         message: 'Erro ao extrair metadados. Verifique o link.',
       })
     } finally {
-      setExtracting(false)
+      setExtractingId(null)
     }
   }
 
+  // Validation - now allows partial filling
   const canProceed =
-    gatilho.tema.trim() !== '' &&
-    gatilho.gatilhosEmocionais.length > 0
+    gatilho.tema.trim() !== '' ||
+    gatilho.concorrentes.some(c => c.link || c.transcricao)
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
@@ -145,7 +182,7 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
             value={gatilho.tema}
             onChange={(e) => setGatilho({ tema: e.target.value })}
             rows={3}
-            hint="Descreva claramente o objetivo e mensagem principal do vídeo"
+            hint="Descreva o objetivo do vídeo OU cole um link de referência abaixo"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -171,7 +208,7 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
           <div className="space-y-3">
             <label className="block text-sm font-medium text-text-primary">
               Gatilhos Emocionais{' '}
-              <span className="text-text-secondary">(selecione um ou mais)</span>
+              <span className="text-text-secondary">(opcional)</span>
             </label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {emotionalTriggers.map((trigger) => (
@@ -195,151 +232,260 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
         </CardContent>
       </Card>
 
-      {/* Section 2: Competitor Analysis */}
+      {/* Section 2: Competitor Analysis - Multiple */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent-purple/20 flex items-center justify-center">
-              <Youtube className="w-5 h-5 text-accent-purple" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent-purple/20 flex items-center justify-center">
+                <Youtube className="w-5 h-5 text-accent-purple" />
+              </div>
+              <div>
+                <CardTitle>Análise de Concorrentes</CardTitle>
+                <CardDescription>
+                  Adicione links de vídeos de referência que performaram bem
+                </CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle>Análise de Concorrente</CardTitle>
-              <CardDescription>
-                Cole o link de um vídeo de referência que performou bem
-              </CardDescription>
-            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={addConcorrente}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              Adicionar
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <Input
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={gatilho.concorrenteLink}
-                onChange={(e) => setGatilho({ concorrenteLink: e.target.value })}
-                className="h-11"
-              />
+          {gatilho.concorrentes.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed border-white/10 rounded-xl">
+              <Youtube className="w-12 h-12 mx-auto mb-3 text-text-secondary/50" />
+              <p className="text-text-secondary mb-3">
+                Nenhum concorrente adicionado ainda
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={addConcorrente}
+                icon={<Plus className="w-4 h-4" />}
+              >
+                Adicionar Concorrente
+              </Button>
             </div>
-            <Button
-              onClick={extractMetadata}
-              loading={extracting}
-              disabled={!gatilho.concorrenteLink}
-              icon={<Link2 className="w-4 h-4" />}
-            >
-              Extrair Metadados
-            </Button>
-          </div>
-
-          {/* Extracted Metadata Display */}
-          {gatilho.concorrenteMetadados && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="bg-background/50 rounded-xl p-4 space-y-4"
-            >
-              <div className="flex gap-4">
-                {gatilho.concorrenteMetadados.thumbnailUrl && (
-                  <img
-                    src={gatilho.concorrenteMetadados.thumbnailUrl}
-                    alt="Thumbnail"
-                    className="w-40 h-24 object-cover rounded-lg"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-text-primary truncate">
-                    {gatilho.concorrenteMetadados.titulo}
-                  </h4>
-                  <div className="flex items-center gap-2 mt-1 text-sm text-text-secondary">
-                    <User className="w-3 h-3" />
-                    <span>{gatilho.concorrenteMetadados.canal}</span>
-                    <span className="text-text-secondary/50">•</span>
-                    <span>{gatilho.concorrenteMetadados.inscritos} inscritos</span>
-                  </div>
-                  <div className="flex flex-wrap gap-4 mt-3">
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Eye className="w-4 h-4 text-accent-blue" />
-                      <span className="text-text-primary">
-                        {formatNumber(gatilho.concorrenteMetadados.views)}
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {gatilho.concorrentes.map((concorrente, index) => (
+                <motion.div
+                  key={concorrente.id}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border border-white/10 rounded-xl overflow-hidden"
+                >
+                  {/* Concorrente Header */}
+                  <div
+                    className="flex items-center justify-between p-4 bg-white/5 cursor-pointer"
+                    onClick={() =>
+                      setExpandedConcorrente(
+                        expandedConcorrente === concorrente.id ? null : concorrente.id
+                      )
+                    }
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-accent-purple/20 text-accent-purple text-xs flex items-center justify-center font-medium">
+                        {index + 1}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <ThumbsUp className="w-4 h-4 text-status-success" />
-                      <span className="text-text-primary">
-                        {formatNumber(gatilho.concorrenteMetadados.likes)}
+                      <span className="text-sm text-text-primary">
+                        {concorrente.metadados?.titulo ||
+                          concorrente.link ||
+                          'Novo Concorrente'}
                       </span>
+                      {concorrente.metadados && (
+                        <span className="px-2 py-0.5 bg-status-success/20 text-status-success text-xs rounded-full">
+                          Extraído
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <MessageCircle className="w-4 h-4 text-accent-purple" />
-                      <span className="text-text-primary">
-                        {formatNumber(gatilho.concorrenteMetadados.comentarios)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Calendar className="w-4 h-4 text-status-warning" />
-                      <span className="text-text-secondary">
-                        {gatilho.concorrenteMetadados.diasDecorridos} dias atrás
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Clock className="w-4 h-4 text-text-secondary" />
-                      <span className="text-text-secondary">
-                        {gatilho.concorrenteMetadados.duracao}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tags */}
-              {gatilho.concorrenteMetadados.tags.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-text-secondary">
-                    <Tag className="w-4 h-4" />
-                    <span>Tags</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {gatilho.concorrenteMetadados.tags.slice(0, 10).map((tag, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-1 bg-white/5 rounded-lg text-xs text-text-secondary"
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeConcorrente(concorrente.id)
+                        }}
+                        className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
                       >
-                        {tag}
-                      </span>
-                    ))}
-                    {gatilho.concorrenteMetadados.tags.length > 10 && (
-                      <span className="px-2 py-1 text-xs text-text-secondary">
-                        +{gatilho.concorrenteMetadados.tags.length - 10} mais
-                      </span>
-                    )}
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      {expandedConcorrente === concorrente.id ? (
+                        <ChevronUp className="w-4 h-4 text-text-secondary" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-text-secondary" />
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {/* Description (collapsible) */}
-              <details className="group">
-                <summary className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer hover:text-text-primary">
-                  <FileText className="w-4 h-4" />
-                  <span>Ver descrição completa</span>
-                  <ExternalLink className="w-3 h-3 ml-auto group-open:rotate-90 transition-transform" />
-                </summary>
-                <p className="mt-2 text-sm text-text-secondary whitespace-pre-line max-h-40 overflow-y-auto">
-                  {gatilho.concorrenteMetadados.descricao}
-                </p>
-              </details>
-            </motion.div>
+                  {/* Concorrente Content */}
+                  <AnimatePresence>
+                    {expandedConcorrente === concorrente.id && (
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: 'auto' }}
+                        exit={{ height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-4 space-y-4 border-t border-white/5">
+                          {/* Link Input */}
+                          <div className="flex gap-3">
+                            <div className="flex-1">
+                              <Input
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                value={concorrente.link}
+                                onChange={(e) =>
+                                  updateConcorrente(concorrente.id, {
+                                    link: e.target.value,
+                                  })
+                                }
+                                className="h-11"
+                              />
+                            </div>
+                            <Button
+                              onClick={() => extractMetadata(concorrente)}
+                              loading={extractingId === concorrente.id}
+                              disabled={!concorrente.link}
+                              icon={<Link2 className="w-4 h-4" />}
+                            >
+                              Extrair
+                            </Button>
+                          </div>
+
+                          {/* Extracted Metadata Display */}
+                          {concorrente.metadados && (
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="bg-background/50 rounded-xl p-4 space-y-4"
+                            >
+                              <div className="flex gap-4">
+                                {concorrente.metadados.thumbnailUrl && (
+                                  <img
+                                    src={concorrente.metadados.thumbnailUrl}
+                                    alt="Thumbnail"
+                                    className="w-40 h-24 object-cover rounded-lg"
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-text-primary truncate">
+                                    {concorrente.metadados.titulo}
+                                  </h4>
+                                  <div className="flex items-center gap-2 mt-1 text-sm text-text-secondary">
+                                    <User className="w-3 h-3" />
+                                    <span>{concorrente.metadados.canal}</span>
+                                    <span className="text-text-secondary/50">•</span>
+                                    <span>
+                                      {concorrente.metadados.inscritos} inscritos
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-4 mt-3">
+                                    <div className="flex items-center gap-1.5 text-sm">
+                                      <Eye className="w-4 h-4 text-accent-blue" />
+                                      <span className="text-text-primary">
+                                        {formatNumber(concorrente.metadados.views)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-sm">
+                                      <ThumbsUp className="w-4 h-4 text-status-success" />
+                                      <span className="text-text-primary">
+                                        {formatNumber(concorrente.metadados.likes)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-sm">
+                                      <MessageCircle className="w-4 h-4 text-accent-purple" />
+                                      <span className="text-text-primary">
+                                        {formatNumber(
+                                          concorrente.metadados.comentarios
+                                        )}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-sm">
+                                      <Calendar className="w-4 h-4 text-status-warning" />
+                                      <span className="text-text-secondary">
+                                        {concorrente.metadados.diasDecorridos} dias
+                                        atrás
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-sm">
+                                      <Clock className="w-4 h-4 text-text-secondary" />
+                                      <span className="text-text-secondary">
+                                        {concorrente.metadados.duracao}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Tags */}
+                              {concorrente.metadados.tags.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                                    <Tag className="w-4 h-4" />
+                                    <span>Tags</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {concorrente.metadados.tags
+                                      .slice(0, 10)
+                                      .map((tag, i) => (
+                                        <span
+                                          key={i}
+                                          className="px-2 py-1 bg-white/5 rounded-lg text-xs text-text-secondary"
+                                        >
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    {concorrente.metadados.tags.length > 10 && (
+                                      <span className="px-2 py-1 text-xs text-text-secondary">
+                                        +{concorrente.metadados.tags.length - 10}{' '}
+                                        mais
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Description */}
+                              <details className="group">
+                                <summary className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer hover:text-text-primary">
+                                  <FileText className="w-4 h-4" />
+                                  <span>Ver descrição completa</span>
+                                  <ExternalLink className="w-3 h-3 ml-auto group-open:rotate-90 transition-transform" />
+                                </summary>
+                                <p className="mt-2 text-sm text-text-secondary whitespace-pre-line max-h-40 overflow-y-auto">
+                                  {concorrente.metadados.descricao}
+                                </p>
+                              </details>
+                            </motion.div>
+                          )}
+
+                          {/* Transcription Field */}
+                          <Textarea
+                            label="Transcrição do Vídeo (opcional)"
+                            placeholder="Cole aqui a transcrição do vídeo concorrente. Você pode obter através do botão 'Mostrar transcrição' do YouTube."
+                            value={concorrente.transcricao}
+                            onChange={(e) =>
+                              updateConcorrente(concorrente.id, {
+                                transcricao: e.target.value,
+                              })
+                            }
+                            rows={4}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           )}
-
-          {/* Transcription Field */}
-          <Textarea
-            label="Transcrição do Vídeo (cole manualmente)"
-            placeholder="Cole aqui a transcrição do vídeo concorrente. Você pode obter através do botão 'Mostrar transcrição' do YouTube ou usando extensões de navegador."
-            value={gatilho.concorrenteTranscricao}
-            onChange={(e) =>
-              setGatilho({ concorrenteTranscricao: e.target.value })
-            }
-            rows={6}
-            hint="A transcrição ajuda a IA a entender a estrutura narrativa do vídeo de sucesso"
-          />
         </CardContent>
       </Card>
 
