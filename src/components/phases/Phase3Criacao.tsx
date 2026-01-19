@@ -34,7 +34,6 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
     setCriacao,
     diretrizes,
     addToast,
-    configuracoes,
   } = useStore()
   const [generating, setGenerating] = useState(false)
   const [generatingThumb, setGeneratingThumb] = useState<number | null>(null)
