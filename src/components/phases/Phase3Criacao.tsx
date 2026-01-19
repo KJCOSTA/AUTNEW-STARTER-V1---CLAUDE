@@ -10,6 +10,9 @@ import {
   Wand2,
   Settings2,
   FlaskConical,
+  DollarSign,
+  FileText,
+  Edit3,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -30,7 +33,10 @@ interface Phase3CriacaoProps {
   onBack: () => void
 }
 
-// Mock options generator for Test Mode
+// Cost estimates for thumbnail generation (using DALL-E 3)
+const THUMBNAIL_COST = 0.04
+
+// Mock options generator for Test Mode - WITHOUT auto thumbnails
 function getMockOptions(tema: string, gatilhos: string[]): OpcaoCriacao[] {
   const gatilho0 = gatilhos[0] || 'esperança'
 
@@ -42,9 +48,9 @@ function getMockOptions(tema: string, gatilhos: string[]): OpcaoCriacao[] {
         'Pessoa idosa de mãos postas em oração, luz dourada celestial ao fundo, expressão de paz e serenidade',
       goldenHook:
         'Você já sentiu que suas orações não estão sendo ouvidas? Nos próximos minutos, eu vou te mostrar como conectar seu coração diretamente com Deus...',
-      thumbnailUrl: 'https://picsum.photos/seed/opt1/1280/720',
+      thumbnailUrl: '', // Start empty - NO auto generation
       thumbnailPrompt:
-        'Elderly person with hands in prayer, golden celestial light background, peaceful serene expression, spiritual atmosphere, 16:9 aspect ratio',
+        'Elderly person with hands in prayer, golden celestial light background, peaceful serene expression, spiritual atmosphere, 16:9 aspect ratio, photorealistic, dramatic lighting',
     },
     {
       id: 2,
@@ -53,9 +59,9 @@ function getMockOptions(tema: string, gatilhos: string[]): OpcaoCriacao[] {
         'Mãos erguidas para o céu com raios de luz, nuvens celestiais, atmosfera de milagre',
       goldenHook:
         'Esta oração mudou a vida de milhares de pessoas. E hoje, ela pode mudar a sua também...',
-      thumbnailUrl: 'https://picsum.photos/seed/opt2/1280/720',
+      thumbnailUrl: '', // Start empty - NO auto generation
       thumbnailPrompt:
-        'Hands raised to the sky with rays of light, celestial clouds, miracle atmosphere, spiritual, 16:9 aspect ratio',
+        'Hands raised to the sky with rays of light, celestial clouds, miracle atmosphere, spiritual, divine presence, 16:9 aspect ratio, photorealistic',
     },
     {
       id: 3,
@@ -64,9 +70,9 @@ function getMockOptions(tema: string, gatilhos: string[]): OpcaoCriacao[] {
         'Bíblia aberta com luz emanando, ambiente acolhedor e espiritual, tons quentes',
       goldenHook:
         'Existe uma forma de orar que toca o coração de Deus instantaneamente. E ela está esquecida pela maioria das pessoas...',
-      thumbnailUrl: 'https://picsum.photos/seed/opt3/1280/720',
+      thumbnailUrl: '', // Start empty - NO auto generation
       thumbnailPrompt:
-        'Open Bible with light emanating, cozy spiritual environment, warm tones, divine presence, 16:9 aspect ratio',
+        'Open Bible with light emanating, cozy spiritual environment, warm tones, divine presence, holy book, 16:9 aspect ratio, photorealistic',
     },
   ]
 }
@@ -172,6 +178,9 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
 
   const [generating, setGenerating] = useState(false)
   const [generatingThumb, setGeneratingThumb] = useState<number | null>(null)
+  const [generatingAllThumbs, setGeneratingAllThumbs] = useState(false)
+  const [regeneratingPrompt, setRegeneratingPrompt] = useState<number | null>(null)
+  const [regeneratingScript, setRegeneratingScript] = useState(false)
 
   // Model selection per action for next phase - using AI Registry
   const [modelSelections, setModelSelections] = useState<Record<string, { provider: string; model: string }>>(
@@ -218,7 +227,7 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
           if (response.ok) {
             const data = await response.json()
             options = data.options && data.options.length > 0
-              ? data.options
+              ? data.options.map((opt: OpcaoCriacao) => ({ ...opt, thumbnailUrl: '' })) // Ensure no auto thumbnails
               : getMockOptions(gatilho.tema, gatilho.gatilhosEmocionais)
           } else {
             throw new Error('API Error')
@@ -235,6 +244,53 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
       addToast({ type: 'error', message: 'Erro ao gerar opções' })
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // Update individual option field
+  const updateOptionField = (optionId: number, field: keyof OpcaoCriacao, value: string) => {
+    const updatedOptions = criacao.opcoes.map((o) =>
+      o.id === optionId ? { ...o, [field]: value } : o
+    )
+    setCriacao({ opcoes: updatedOptions })
+  }
+
+  // Regenerate prompt for a single option
+  const regeneratePrompt = async (optionId: number) => {
+    const option = criacao.opcoes.find((o) => o.id === optionId)
+    if (!option) return
+
+    setRegeneratingPrompt(optionId)
+    try {
+      if (isTestMode) {
+        await new Promise(r => setTimeout(r, 1000))
+        const newPrompt = `${option.conceitoThumbnail}, spiritual atmosphere, divine light, 16:9 aspect ratio, photorealistic, cinematic lighting, highly detailed`
+        updateOptionField(optionId, 'thumbnailPrompt', newPrompt)
+        addToast({ type: 'success', message: '[TEST MODE] Prompt regenerado!' })
+      } else {
+        const response = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate-prompt',
+            conceito: option.conceitoThumbnail,
+            titulo: option.titulo,
+            diretrizes,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          updateOptionField(optionId, 'thumbnailPrompt', data.prompt || option.thumbnailPrompt)
+          addToast({ type: 'success', message: 'Prompt regenerado!' })
+        } else {
+          throw new Error('API Error')
+        }
+      }
+    } catch {
+      addToast({ type: 'error', message: 'Erro ao regenerar prompt' })
+    } finally {
+      setRegeneratingPrompt(null)
     }
   }
 
@@ -282,6 +338,23 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
       })
     } finally {
       setGeneratingThumb(null)
+    }
+  }
+
+  // Generate all thumbnails
+  const generateAllThumbnails = async () => {
+    setGeneratingAllThumbs(true)
+    try {
+      for (const option of criacao.opcoes) {
+        if (!option.thumbnailUrl) {
+          await generateThumbnail(option.id)
+        }
+      }
+      addToast({ type: 'success', message: 'Todas as thumbnails geradas!' })
+    } catch {
+      addToast({ type: 'error', message: 'Erro ao gerar thumbnails' })
+    } finally {
+      setGeneratingAllThumbs(false)
     }
   }
 
@@ -355,11 +428,15 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
     }
   }
 
+  // Regenerate script
+  const regenerateRoteiro = async () => {
+    setRegeneratingScript(true)
+    await generateRoteiro()
+    setRegeneratingScript(false)
+  }
+
   const handleSelectOption = (id: number) => {
     setCriacao({ opcaoSelecionada: id })
-    if (!criacao.roteiro) {
-      setTimeout(() => generateRoteiro(), 100)
-    }
   }
 
   const handleModelChange = (actionId: string, providerId: string, modelId: string) => {
@@ -377,6 +454,11 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
     }, 0)
   }
 
+  // Count thumbnails that need generation
+  const thumbsToGenerate = criacao.opcoes.filter(o => !o.thumbnailUrl).length
+  const totalThumbsCost = thumbsToGenerate * THUMBNAIL_COST
+
+  // Must have winner selected AND script to proceed
   const canProceed = criacao.opcaoSelecionada !== null && criacao.roteiro.trim() !== ''
 
   return (
@@ -398,20 +480,34 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
                 <CardTitle>Estratégia de Título e Thumbnail</CardTitle>
                 <CardDescription>
                   {isTestMode
-                    ? '[TEST MODE] Opções simuladas - selecione uma'
-                    : 'Selecione a opção que mais combina com seu conteúdo'}
+                    ? '[TEST MODE] Edite os campos e selecione o vencedor'
+                    : 'Edite os campos, gere thumbnails e selecione o vencedor'}
                 </CardDescription>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={generateOptions}
-              loading={generating}
-              icon={<RefreshCw className="w-4 h-4" />}
-            >
-              Regenerar
-            </Button>
+            <div className="flex items-center gap-2">
+              {thumbsToGenerate > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={generateAllThumbnails}
+                  loading={generatingAllThumbs}
+                  disabled={generatingThumb !== null}
+                  icon={<Image className="w-4 h-4" />}
+                >
+                  Gerar Todas ~${(totalThumbsCost).toFixed(2)}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={generateOptions}
+                loading={generating}
+                icon={<RefreshCw className="w-4 h-4" />}
+              >
+                Regenerar Tudo
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -429,69 +525,148 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
               {criacao.opcoes.map((option) => (
                 <motion.div
                   key={option.id}
-                  whileHover={{ y: -4 }}
-                  onClick={() => handleSelectOption(option.id)}
-                  className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  whileHover={{ y: -2 }}
+                  className={`relative p-4 rounded-xl border-2 transition-all ${
                     criacao.opcaoSelecionada === option.id
                       ? 'border-accent-blue bg-accent-blue/10'
                       : 'border-white/10 bg-background/50 hover:border-white/20'
                   }`}
                 >
-                  {criacao.opcaoSelecionada === option.id && (
-                    <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-accent-blue flex items-center justify-center">
-                      <Check className="w-4 h-4 text-white" />
-                    </div>
-                  )}
+                  {/* Radio button for winner selection */}
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="winner"
+                        checked={criacao.opcaoSelecionada === option.id}
+                        onChange={() => handleSelectOption(option.id)}
+                        className="w-4 h-4 accent-accent-blue"
+                      />
+                      <span className="text-xs font-medium text-text-secondary">
+                        Opção {option.id}
+                      </span>
+                    </label>
+                    {criacao.opcaoSelecionada === option.id && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-accent-blue/20 rounded-full">
+                        <Check className="w-3 h-3 text-accent-blue" />
+                        <span className="text-xs font-medium text-accent-blue">Vencedor</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Thumbnail Preview */}
-                  <div className="aspect-video rounded-lg bg-card mb-3 overflow-hidden relative">
+                  <div className="aspect-video rounded-lg bg-card mb-3 overflow-hidden relative border border-white/5">
                     {option.thumbnailUrl ? (
-                      <img
-                        src={option.thumbnailUrl}
-                        alt="Thumbnail"
-                        className="w-full h-full object-cover"
-                      />
+                      <>
+                        <img
+                          src={option.thumbnailUrl}
+                          alt="Thumbnail"
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          onClick={() => generateThumbnail(option.id)}
+                          disabled={generatingThumb === option.id}
+                          className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 hover:bg-black/90 rounded text-xs text-white flex items-center gap-1 transition-colors"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${generatingThumb === option.id ? 'animate-spin' : ''}`} />
+                          Refazer
+                        </button>
+                      </>
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary">
-                        <Image className="w-8 h-8 mb-2" />
+                      <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary bg-white/5">
+                        <Image className="w-8 h-8 mb-2 opacity-30" />
+                        <span className="text-xs opacity-50 mb-2">Sem thumbnail</span>
                         <Button
                           size="sm"
-                          variant="secondary"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            generateThumbnail(option.id)
-                          }}
+                          variant="primary"
+                          onClick={() => generateThumbnail(option.id)}
                           loading={generatingThumb === option.id}
                           icon={<Wand2 className="w-3 h-3" />}
                         >
-                          Gerar Thumb
+                          Gerar ~${THUMBNAIL_COST.toFixed(2)}
                         </Button>
                       </div>
                     )}
                   </div>
 
-                  {/* Title */}
-                  <h4 className="font-medium text-text-primary text-sm mb-2 line-clamp-2">
-                    {option.titulo}
-                  </h4>
+                  {/* Editable Title */}
+                  <div className="mb-2">
+                    <label className="flex items-center gap-1 text-xs text-text-secondary mb-1">
+                      <Edit3 className="w-3 h-3" />
+                      Título
+                    </label>
+                    <input
+                      type="text"
+                      value={option.titulo}
+                      onChange={(e) => updateOptionField(option.id, 'titulo', e.target.value)}
+                      className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-blue"
+                    />
+                  </div>
 
-                  {/* Concept */}
-                  <p className="text-xs text-text-secondary mb-3 line-clamp-2">
-                    {option.conceitoThumbnail}
-                  </p>
+                  {/* Editable Description/Concept */}
+                  <div className="mb-2">
+                    <label className="flex items-center gap-1 text-xs text-text-secondary mb-1">
+                      <Edit3 className="w-3 h-3" />
+                      Descrição/Conceito
+                    </label>
+                    <textarea
+                      value={option.conceitoThumbnail}
+                      onChange={(e) => updateOptionField(option.id, 'conceitoThumbnail', e.target.value)}
+                      rows={2}
+                      className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-text-secondary resize-none focus:outline-none focus:border-accent-blue"
+                    />
+                  </div>
 
-                  {/* Golden Hook */}
-                  <div className="p-2 bg-white/5 rounded-lg">
-                    <div className="flex items-center gap-1 text-xs text-accent-blue mb-1">
+                  {/* Editable Golden Hook */}
+                  <div className="mb-3">
+                    <label className="flex items-center gap-1 text-xs text-accent-blue mb-1">
                       <Sparkles className="w-3 h-3" />
                       Golden Hook
+                    </label>
+                    <textarea
+                      value={option.goldenHook}
+                      onChange={(e) => updateOptionField(option.id, 'goldenHook', e.target.value)}
+                      rows={3}
+                      className="w-full px-2 py-1.5 bg-accent-blue/5 border border-accent-blue/20 rounded-lg text-xs text-text-secondary resize-none focus:outline-none focus:border-accent-blue"
+                    />
+                  </div>
+
+                  {/* Editable Thumbnail Prompt */}
+                  <div className="p-2 bg-white/5 rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="flex items-center gap-1 text-xs text-accent-purple">
+                        <FileText className="w-3 h-3" />
+                        Prompt da Imagem
+                      </label>
+                      <button
+                        onClick={() => regeneratePrompt(option.id)}
+                        disabled={regeneratingPrompt === option.id}
+                        className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-accent-purple hover:bg-accent-purple/10 rounded transition-colors"
+                      >
+                        <RefreshCw className={`w-2.5 h-2.5 ${regeneratingPrompt === option.id ? 'animate-spin' : ''}`} />
+                        Regenerar
+                      </button>
                     </div>
-                    <p className="text-xs text-text-secondary line-clamp-3">
-                      "{option.goldenHook}"
-                    </p>
+                    <textarea
+                      value={option.thumbnailPrompt || ''}
+                      onChange={(e) => updateOptionField(option.id, 'thumbnailPrompt', e.target.value)}
+                      rows={3}
+                      placeholder="Descreva o prompt para gerar a thumbnail..."
+                      className="w-full px-2 py-1.5 bg-transparent border border-white/10 rounded text-[11px] text-text-secondary resize-none focus:outline-none focus:border-accent-purple font-mono"
+                    />
                   </div>
                 </motion.div>
               ))}
+            </div>
+          )}
+
+          {/* Winner selection reminder */}
+          {criacao.opcoes.length > 0 && criacao.opcaoSelecionada === null && (
+            <div className="mt-4 p-3 bg-status-warning/10 border border-status-warning/20 rounded-lg flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-status-warning" />
+              <span className="text-sm text-status-warning">
+                Selecione uma opção vencedora (radio button) antes de continuar
+              </span>
             </div>
           )}
         </CardContent>
@@ -508,21 +683,36 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
               <div>
                 <CardTitle>Editor de Roteiro</CardTitle>
                 <CardDescription>
-                  Revise e edite o roteiro antes de prosseguir
+                  {criacao.opcaoSelecionada
+                    ? 'Revise e edite o roteiro antes de prosseguir'
+                    : 'Selecione um vencedor acima para gerar o roteiro'}
                 </CardDescription>
               </div>
             </div>
-            {criacao.opcaoSelecionada && !criacao.roteiro && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={generateRoteiro}
-                loading={generating}
-                icon={<Wand2 className="w-4 h-4" />}
-              >
-                Gerar Roteiro
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {criacao.roteiro && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={regenerateRoteiro}
+                  loading={regeneratingScript}
+                  icon={<RefreshCw className="w-4 h-4" />}
+                >
+                  Regenerar Roteiro
+                </Button>
+              )}
+              {criacao.opcaoSelecionada && !criacao.roteiro && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={generateRoteiro}
+                  loading={generating}
+                  icon={<Wand2 className="w-4 h-4" />}
+                >
+                  Gerar Roteiro
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -538,7 +728,7 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
             <div className="text-center py-12 text-text-secondary">
               {criacao.opcaoSelecionada
                 ? 'Clique em "Gerar Roteiro" para criar o conteúdo'
-                : 'Selecione uma opção acima para gerar o roteiro'}
+                : 'Selecione uma opção vencedora acima para gerar o roteiro'}
             </div>
           )}
         </CardContent>
@@ -615,6 +805,14 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         </Button>
         <Button
           onClick={() => {
+            if (criacao.opcaoSelecionada === null) {
+              addToast({ type: 'warning', message: 'Selecione uma opção vencedora primeiro!' })
+              return
+            }
+            if (!criacao.roteiro.trim()) {
+              addToast({ type: 'warning', message: 'Gere o roteiro antes de continuar!' })
+              return
+            }
             setCriacao({ roteiroAprovado: true })
             onNext()
           }}
