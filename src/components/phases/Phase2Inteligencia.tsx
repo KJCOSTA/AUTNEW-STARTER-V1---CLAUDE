@@ -176,32 +176,35 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
         )
         addLog('deep-research', `[MOCK] Encontrados ${inteligenciaData.deepResearch.fatos.length} fatos relevantes`)
       } else {
-        // Real API call (would fail without proper backend)
-        try {
-          const response = await fetch('/api/gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'analyze',
-              data: gatilho,
-            }),
-          })
+        // PRODUCTION MODE: Real API call only - NO fallback to mock data
+        addLog('deep-research', 'Chamando API Gemini...')
 
-          if (!response.ok) {
-            throw new Error('API Error')
-          }
+        const response = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'analyze',
+            data: gatilho,
+          }),
+        })
 
-          inteligenciaData = await response.json()
-          addLog('deep-research', `Encontrados ${inteligenciaData.deepResearch.fatos.length} fatos relevantes`)
-        } catch {
-          // Fallback to mock if API fails
-          inteligenciaData = getMockInteligenciaData(
-            gatilho.tema,
-            gatilho.gatilhosEmocionais,
-            gatilho.duracao
-          )
-          addLog('deep-research', `[Fallback] Usando dados simulados`)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.error || errorData.message || 'Falha na API'
+          addLog('deep-research', `ERRO: ${errorMessage}`)
+          throw new Error(errorMessage)
         }
+
+        const result = await response.json()
+
+        // Validate response structure
+        if (!result.deepResearch || !result.analiseCanal || !result.analiseConcorrente) {
+          addLog('deep-research', 'ERRO: Resposta incompleta da API')
+          throw new Error('Resposta da API incompleta. Verifique a configuração.')
+        }
+
+        inteligenciaData = result
+        addLog('deep-research', `Encontrados ${inteligenciaData.deepResearch.fatos.length} fatos relevantes`)
       }
 
       updateStep('deep-research', { status: 'completed' })
