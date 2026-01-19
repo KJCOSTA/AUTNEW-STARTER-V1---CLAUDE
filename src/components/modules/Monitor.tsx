@@ -387,7 +387,7 @@ export function Monitor() {
             {apiStatus.map((api) => {
               const Icon = apiIcons[api.name] || Zap
               const StatusIcon = statusIcons[api.status]
-              const isProduction =
+              const isAutoWorkflow =
                 api.name === 'ElevenLabs' || api.name === 'JSON2Video'
 
               return (
@@ -406,9 +406,9 @@ export function Monitor() {
                       </div>
                       <div>
                         <p className="font-medium text-text-primary">{api.name}</p>
-                        {isProduction && (
+                        {isAutoWorkflow && (
                           <span className="text-xs text-accent-purple">
-                            Modo Produção
+                            Workflow Automático
                           </span>
                         )}
                       </div>

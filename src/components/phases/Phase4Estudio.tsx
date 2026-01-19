@@ -407,7 +407,7 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
     if (isMVP && !isTestMode) {
       addToast({
         type: 'warning',
-        message: 'Geração de áudio disponível apenas no Modo Produção',
+        message: 'Geração de áudio disponível apenas no Workflow Automático',
       })
       return
     }
@@ -639,10 +639,10 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
             className={`px-3 py-1 rounded-full text-xs font-medium ${
               isMVP
                 ? 'bg-status-warning/20 text-status-warning'
-                : 'bg-status-success/20 text-status-success'
+                : 'bg-accent-purple/20 text-accent-purple'
             }`}
           >
-            Modo {isMVP ? 'MVP' : 'Produção'}
+            {isMVP ? 'Workflow MVP' : 'Workflow Auto'}
           </span>
         </div>
       </div>
