@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Settings,
@@ -13,9 +13,7 @@ import {
   Save,
   Plus,
   X,
-  Upload,
   HardDrive,
-  FileSpreadsheet,
   Trash2,
   Film,
   Sparkles,
@@ -66,32 +64,9 @@ export function Configuracoes() {
   const [showEditApiModal, setShowEditApiModal] = useState(false)
   const [editingApiKey, setEditingApiKey] = useState<{ key: string; label: string; value: string } | null>(null)
   const [newApiKey, setNewApiKey] = useState<Partial<APIKeyConfig>>({ nome: '', key: '', tipo: 'api-key' })
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const toggleShowKey = (key: string) => {
     setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  // Handle CSV/XLS file upload for channel data
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const validTypes = ['.csv', '.xls', '.xlsx']
-    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
-
-    if (!validTypes.includes(fileExt)) {
-      addToast({ type: 'error', message: 'Formato inválido. Use CSV ou XLS/XLSX.' })
-      return
-    }
-
-    // Simulate file processing
-    addToast({ type: 'info', message: `Processando ${file.name}...` })
-
-    // In real implementation, parse the file
-    setTimeout(() => {
-      addToast({ type: 'success', message: 'Dados do canal importados!' })
-    }, 1500)
   }
 
   // Handle Google Drive connection
@@ -771,38 +746,12 @@ export function Configuracoes() {
                 </Button>
               </div>
 
-              {/* Alternative: Import Data */}
+              {/* Google Drive Sync */}
               <div className="space-y-3">
                 <p className="text-sm font-medium text-text-primary">
-                  Ou importe dados do seu canal:
+                  Ou sincronize com Google Drive:
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* CSV/XLS Upload */}
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-3 p-4 border border-white/10 rounded-xl hover:bg-white/5 transition-colors text-left"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-status-success/10 flex items-center justify-center">
-                      <FileSpreadsheet className="w-5 h-5 text-status-success" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-text-primary text-sm">Upload CSV/XLS</p>
-                      <p className="text-xs text-text-secondary">
-                        Importe planilha com dados do canal
-                      </p>
-                    </div>
-                    <Upload className="w-4 h-4 text-text-secondary ml-auto" />
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.xls,.xlsx"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-
-                  {/* Google Drive */}
-                  <button
+                <button
                     onClick={handleGoogleDriveConnect}
                     className={`flex items-center gap-3 p-4 border rounded-xl transition-colors text-left ${
                       configuracoes.googleDrive?.conectado
@@ -827,7 +776,6 @@ export function Configuracoes() {
                       <ExternalLink className="w-4 h-4 text-text-secondary ml-auto" />
                     )}
                   </button>
-                </div>
               </div>
             </div>
           )}
