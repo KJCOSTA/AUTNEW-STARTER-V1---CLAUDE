@@ -31,10 +31,14 @@ const initialGatilho: GatilhoData = {
 }
 
 const initialCriacao: CriacaoData = {
+  // LEGACY fields
   opcoes: [],
   opcaoSelecionada: null,
+  // NEW MODEL: Single video with variations
   roteiro: '',
   roteiroAprovado: false,
+  titleVariants: [],
+  thumbVariants: [],
 }
 
 const initialEstudio: EstudioData = {
