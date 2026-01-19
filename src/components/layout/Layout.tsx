@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { ProgressBar } from '../ui/ProgressBar'
 import type { ModuleName } from '../../types'
 
 interface LayoutProps {
@@ -10,6 +11,9 @@ interface LayoutProps {
 }
 
 export function Layout({ children, activeModule, onModuleChange }: LayoutProps) {
+  // Show progress bar only in Plan Run module
+  const showProgressBar = activeModule === 'plan-run'
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar activeModule={activeModule} onModuleChange={onModuleChange} />
@@ -18,6 +22,7 @@ export function Layout({ children, activeModule, onModuleChange }: LayoutProps) 
         <Header />
 
         <main className="p-6">
+          {showProgressBar && <ProgressBar />}
           {children}
         </main>
 
