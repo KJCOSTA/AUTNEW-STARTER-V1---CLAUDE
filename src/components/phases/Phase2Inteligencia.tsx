@@ -27,7 +27,7 @@ interface ProcessStep {
 }
 
 export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) {
-  const { gatilho, setInteligencia, diretrizes, addToast } = useStore()
+  const { gatilho, setInteligencia, addToast } = useStore()
   const [steps, setSteps] = useState<ProcessStep[]>([
     {
       id: 'deep-research',
