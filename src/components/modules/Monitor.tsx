@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Cloud,
   AlertTriangle,
+  Server,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -30,6 +31,14 @@ import {
 } from '../ui'
 import { checkAPIStatus } from '../../services/api'
 import type { APIStatus } from '../../types'
+
+// Server API status response type
+interface ServerAPIStatus {
+  apis: Record<string, { configured: boolean; envVar: string }>
+  summary: { configured: number; total: number; percentage: number }
+  missingApis: Array<{ name: string; envVar: string }>
+  message: string
+}
 
 // AI Provider configurations with quotas and costs
 const AI_PROVIDERS = {
@@ -133,6 +142,8 @@ const statusIcons: Record<APIStatus, typeof CheckCircle> = {
 export function Monitor() {
   const { apiStatus, setAPIStatus, configuracoes, addToast } = useStore()
   const [testing, setTesting] = useState<string | null>(null)
+  const [serverStatus, setServerStatus] = useState<ServerAPIStatus | null>(null)
+  const [loadingServerStatus, setLoadingServerStatus] = useState(true)
   const isTestMode = configuracoes.appMode === 'test'
 
   // Quota tracking (in real app, would come from state/backend)
@@ -142,6 +153,24 @@ export function Monitor() {
     groq: { used: 25000, limit: 500000, percent: 5 },
     elevenlabs: { used: 5200, limit: 10000, percent: 52 },
   })
+
+  // Fetch server API status on mount
+  useEffect(() => {
+    const fetchServerStatus = async () => {
+      try {
+        const response = await fetch('/api/status')
+        if (response.ok) {
+          const data = await response.json()
+          setServerStatus(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch server status:', error)
+      } finally {
+        setLoadingServerStatus(false)
+      }
+    }
+    fetchServerStatus()
+  }, [])
 
   // Cost breakdown
   const costBreakdown = {
@@ -169,47 +198,58 @@ export function Monitor() {
     checkStatus()
   }, [])
 
-  // API key mapping for checking configuration
-  const apiKeyMapping: Record<string, keyof typeof configuracoes.apiKeys> = {
+  // API key mapping - now maps display names to server env var names
+  const apiKeyMapping: Record<string, string> = {
     Gemini: 'gemini',
     OpenAI: 'openai',
     Claude: 'anthropic',
     ElevenLabs: 'elevenlabs',
     JSON2Video: 'json2video',
     Groq: 'groq',
+    Pexels: 'pexels',
+    Pixabay: 'pixabay',
+    Unsplash: 'unsplash',
+    YouTube: 'youtube',
   }
 
-  // Check if API key is configured
+  // Check if API key is configured on SERVER (Vercel env vars)
   const isApiKeyConfigured = (apiName: string): boolean => {
     const keyName = apiKeyMapping[apiName]
-    if (!keyName) return true // APIs without keys (Edge TTS, YouTube)
-    const key = configuracoes.apiKeys[keyName]
-    return !!key && key.trim().length > 0
+    if (!keyName) return true // APIs without keys (Edge TTS)
+
+    // Use server status if available
+    if (serverStatus?.apis[keyName]) {
+      return serverStatus.apis[keyName].configured
+    }
+
+    // Fallback to localStorage check (for backwards compatibility)
+    const localKey = configuracoes.apiKeys[keyName as keyof typeof configuracoes.apiKeys]
+    return !!localKey && localKey.trim().length > 0
   }
 
   // Get specific error message with solution
   const getErrorMessageWithSolution = (apiName: string, errorType: string, details?: string): string => {
     const solutions: Record<string, Record<string, string>> = {
       Gemini: {
-        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > Gemini',
+        'no-key': 'Configure GEMINI_API_KEY no Vercel > Settings > Environment Variables',
         'invalid-key': 'API Key inválida. Verifique em aistudio.google.com',
         'quota-exceeded': 'Quota excedida. Aguarde ou atualize seu plano',
         'network': 'Erro de rede. Verifique sua conexão',
       },
       OpenAI: {
-        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > OpenAI',
+        'no-key': 'Configure OPENAI_API_KEY no Vercel > Settings > Environment Variables',
         'invalid-key': 'API Key inválida. Verifique em platform.openai.com',
         'quota-exceeded': 'Créditos insuficientes. Adicione créditos em OpenAI',
         'network': 'Erro de rede. Verifique sua conexão',
       },
       Claude: {
-        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > Anthropic',
+        'no-key': 'Configure ANTHROPIC_API_KEY no Vercel > Settings > Environment Variables',
         'invalid-key': 'API Key inválida. Verifique em console.anthropic.com',
         'quota-exceeded': 'Quota excedida. Verifique seu plano',
         'network': 'Erro de rede. Verifique sua conexão',
       },
       ElevenLabs: {
-        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > ElevenLabs',
+        'no-key': 'Configure ELEVENLABS_API_KEY no Vercel > Settings > Environment Variables',
         'invalid-key': 'API Key inválida. Verifique em elevenlabs.io',
         'quota-exceeded': 'Caracteres esgotados. Aguarde renovação mensal',
         'network': 'Erro de rede. Verifique sua conexão',
@@ -219,12 +259,34 @@ export function Monitor() {
         'default': 'Edge TTS é gratuito e não requer API Key',
       },
       JSON2Video: {
-        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > JSON2Video',
+        'no-key': 'Configure JSON2VIDEO_API_KEY no Vercel > Settings > Environment Variables',
         'invalid-key': 'API Key inválida. Verifique em json2video.com',
         'quota-exceeded': 'Créditos insuficientes. Recarregue em json2video.com',
         'network': 'Erro de rede. Verifique sua conexão',
       },
+      Groq: {
+        'no-key': 'Configure GROQ_API_KEY no Vercel > Settings > Environment Variables',
+        'invalid-key': 'API Key inválida. Verifique em console.groq.com',
+        'quota-exceeded': 'Quota excedida. Aguarde reset diário',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      Pexels: {
+        'no-key': 'Configure PEXELS_API_KEY no Vercel > Settings > Environment Variables',
+        'invalid-key': 'API Key inválida. Verifique em pexels.com/api',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      Pixabay: {
+        'no-key': 'Configure PIXABAY_API_KEY no Vercel > Settings > Environment Variables',
+        'invalid-key': 'API Key inválida. Verifique em pixabay.com/api/docs',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      Unsplash: {
+        'no-key': 'Configure UNSPLASH_ACCESS_KEY no Vercel > Settings > Environment Variables',
+        'invalid-key': 'API Key inválida. Verifique em unsplash.com/developers',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
       YouTube: {
+        'no-key': 'Configure YOUTUBE_CLIENT_ID no Vercel > Settings > Environment Variables',
         'not-connected': 'YouTube não conectado. Vá em Configurações > Conexões',
         'network': 'Erro de rede. Verifique sua conexão',
       },
@@ -236,17 +298,9 @@ export function Monitor() {
     return message
   }
 
-  // Real API test functions
+  // Real API test functions - tests directly against server APIs
+  // Server APIs check for env vars and return appropriate errors
   const testRealAPI = async (apiName: string): Promise<{ success: boolean; message: string; action?: string }> => {
-    // First check if API key is configured (for APIs that need it)
-    if (!isApiKeyConfigured(apiName)) {
-      return {
-        success: false,
-        message: getErrorMessageWithSolution(apiName, 'no-key'),
-        action: 'configure-key'
-      }
-    }
-
     const apiEndpoints: Record<string, { url: string; body: object }> = {
       Gemini: {
         url: '/api/gemini',
@@ -270,6 +324,22 @@ export function Monitor() {
       },
       JSON2Video: {
         url: '/api/json2video',
+        body: { action: 'test-connection' }
+      },
+      Groq: {
+        url: '/api/groq',
+        body: { action: 'test-connection' }
+      },
+      Pexels: {
+        url: '/api/pexels',
+        body: { action: 'test-connection' }
+      },
+      Pixabay: {
+        url: '/api/pixabay',
+        body: { action: 'test-connection' }
+      },
+      Unsplash: {
+        url: '/api/unsplash',
         body: { action: 'test-connection' }
       },
       YouTube: {
@@ -429,6 +499,93 @@ export function Monitor() {
           </Button>
         </div>
       </div>
+
+      {/* Server Environment Variables Status */}
+      {serverStatus && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Server className="w-5 h-5 text-accent-blue" />
+                <CardTitle className="text-lg">Status do Servidor (Vercel)</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  serverStatus.summary.percentage === 100
+                    ? 'bg-status-success/20 text-status-success'
+                    : serverStatus.summary.percentage >= 50
+                    ? 'bg-status-warning/20 text-status-warning'
+                    : 'bg-status-error/20 text-status-error'
+                }`}>
+                  {serverStatus.summary.configured}/{serverStatus.summary.total} APIs
+                </span>
+              </div>
+            </div>
+            <CardDescription>
+              APIs configuradas nas Environment Variables do Vercel
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              {Object.entries(serverStatus.apis).map(([name, status]) => (
+                <div
+                  key={name}
+                  className={`p-2 rounded-lg border ${
+                    status.configured
+                      ? 'bg-status-success/5 border-status-success/20'
+                      : 'bg-status-error/5 border-status-error/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      status.configured ? 'bg-status-success' : 'bg-status-error'
+                    }`} />
+                    <span className="text-xs font-medium text-text-primary capitalize">
+                      {name}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-text-secondary mt-1 truncate">
+                    {status.envVar}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {serverStatus.missingApis.length > 0 && (
+              <div className="mt-4 p-3 rounded-lg bg-status-warning/5 border border-status-warning/20">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-status-warning flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-status-warning">
+                      APIs não configuradas no Vercel
+                    </p>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Adicione estas variáveis em Vercel &gt; Settings &gt; Environment Variables:
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {serverStatus.missingApis.map(api => (
+                        <code key={api.name} className="px-1.5 py-0.5 bg-background rounded text-xs text-text-secondary">
+                          {api.envVar}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {loadingServerStatus && (
+        <Card>
+          <CardContent className="py-8">
+            <div className="flex items-center justify-center gap-3">
+              <RefreshCw className="w-5 h-5 text-accent-blue animate-spin" />
+              <span className="text-text-secondary">Verificando status do servidor...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cost Summary Card */}
       <Card>
