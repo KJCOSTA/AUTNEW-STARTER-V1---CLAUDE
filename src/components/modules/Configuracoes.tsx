@@ -297,7 +297,7 @@ export function Configuracoes() {
                       field.key,
                       configuracoes.apiKeys[
                         field.key as keyof typeof configuracoes.apiKeys
-                      ]
+                      ] || ''
                     )
                   }
                   loading={testing === field.key}

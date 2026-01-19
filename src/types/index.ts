@@ -54,7 +54,7 @@ export interface GatilhoData {
   concorrenteMetadados: YouTubeMetadata | null
 }
 
-// YouTube Metadata from competitor
+// YouTube Metadata from competitor - Extended
 export interface YouTubeMetadata {
   videoId: string
   titulo: string
@@ -69,6 +69,26 @@ export interface YouTubeMetadata {
   tags: string[]
   descricao: string
   thumbnailUrl: string
+  // Extended data from YouTube API
+  canalId?: string
+  canalDescricao?: string
+  canalDataCriacao?: string
+  canalPais?: string
+  canalTotalVideos?: number
+  canalTotalViews?: number
+  canalPlaylistUploads?: string
+  categoria?: string
+  idioma?: string
+  legendasDisponiveis?: string[]
+  licensaCreativeCommons?: boolean
+  embedHabilitado?: boolean
+  estatisticasAvancadas?: {
+    taxaEngajamento?: number
+    retencaoEstimada?: number
+    ctrEstimado?: number
+    crescimentoInscritos30d?: number
+    frequenciaUpload?: string
+  }
 }
 
 // User's channel data
@@ -171,6 +191,28 @@ export interface Producao {
 }
 
 // Guidelines Module
+
+// Action types for custom diretrizes
+export type DiretrizAcaoTipo =
+  | 'roteiro'
+  | 'thumbnail'
+  | 'audio'
+  | 'video'
+  | 'narracao'
+  | 'descricao'
+  | 'todas'
+
+// Custom diretriz that can be applied to specific actions
+export interface DiretrizCustomizada {
+  id: string
+  titulo: string
+  descricao: string
+  conteudo: string
+  acoes: DiretrizAcaoTipo[]
+  ativa: boolean
+  criadaEm: string
+}
+
 export interface DiretrizesContent {
   listaNegra: string[]
   estiloVisual: {
@@ -192,6 +234,8 @@ export interface DiretrizesContent {
     fechamento: string
     ctaFinal: string
   }
+  // Custom diretrizes per action
+  diretrizesCustomizadas: DiretrizCustomizada[]
 }
 
 export interface DiretrizPerfil {
@@ -216,10 +260,19 @@ export interface APIStatusInfo {
 }
 
 // Settings
-export type OperationMode = 'mvp' | 'producao'
+export type OperationMode = 'mvp' | 'producao' | 'full-ai'
 
 // Test Mode
 export type AppMode = 'test' | 'production'
+
+// API Key configuration
+export interface APIKeyConfig {
+  key: string
+  nome: string
+  tipo: 'api-key' | 'oauth'
+  valida?: boolean
+  ultimoTeste?: string
+}
 
 export interface Configuracoes {
   modo: OperationMode
@@ -229,10 +282,26 @@ export interface Configuracoes {
     openai: string
     elevenlabs: string
     json2video: string
+    // Additional API providers
+    anthropic?: string
+    groq?: string
+    mistral?: string
+    stabilityai?: string
+    replicate?: string
+    pexels?: string
+    pixabay?: string
   }
+  // Custom API keys that user can add
+  apiKeysCustom: APIKeyConfig[]
   youtube: {
     conectado: boolean
     canalNome: string
+    accessToken?: string
+    refreshToken?: string
+  }
+  // Google Drive for data import
+  googleDrive?: {
+    conectado: boolean
     accessToken?: string
     refreshToken?: string
   }
@@ -240,6 +309,11 @@ export interface Configuracoes {
     nomeCanal: string
     nicho: string
     tomComunicacao: string
+  }
+  // JSON2Video settings
+  json2video: {
+    useWatermark: boolean
+    previewMode: boolean
   }
 }
 
