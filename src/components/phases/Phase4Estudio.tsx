@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Film,
   Image,
@@ -9,6 +9,10 @@ import {
   Clock,
   Check,
   Video,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Settings2,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -21,16 +25,113 @@ import {
 } from '../ui'
 import type { Cena } from '../../types'
 
+// AI Models configuration
+const AI_MODELS = [
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', cost: 0.0001, speed: 'Muito rápido' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', cost: 0.0002, speed: 'Rápido' },
+  { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', cost: 0.00025, speed: 'Muito rápido' },
+  { id: 'dall-e-3', name: 'DALL-E 3', provider: 'OpenAI', cost: 0.04, speed: 'Médio' },
+  { id: 'json2video', name: 'JSON2Video', provider: 'JSON2Video', cost: 0.10, speed: 'Lento' },
+]
+
+// Next phase actions definition (Entrega)
+const NEXT_PHASE_ACTIONS = [
+  {
+    id: 'generate-seo',
+    label: 'Otimização SEO',
+    description: 'Gera título, descrição e tags otimizados',
+    defaultModel: 'gemini-2.5-flash'
+  },
+  {
+    id: 'generate-final-thumb',
+    label: 'Thumbnail Final',
+    description: 'Versão final da thumbnail com texto',
+    defaultModel: 'dall-e-3'
+  },
+  {
+    id: 'prepare-upload',
+    label: 'Preparação para Upload',
+    description: 'Prepara metadados para YouTube',
+    defaultModel: 'gpt-4o-mini'
+  },
+]
+
 interface Phase4EstudioProps {
   onNext: () => void
   onBack: () => void
+}
+
+// Mock scenes generator for Test Mode
+function getMockCenas(_roteiro: string): Cena[] {
+  return [
+    {
+      id: 1,
+      timestamp: '00:00-00:15',
+      texto: 'ABERTURA MAGNÉTICA\n\nSe você chegou até aqui, não foi por acaso. Deus tem uma mensagem especial para você hoje...',
+      visualSugerido: 'Nascer do sol sobre montanhas, luz dourada, atmosfera celestial',
+      visualUrl: 'https://picsum.photos/seed/cena1/1920/1080',
+      visualTipo: 'gerado',
+    },
+    {
+      id: 2,
+      timestamp: '00:15-00:45',
+      texto: 'GANCHO EMOCIONAL\n\nQuantas vezes você se sentiu perdido, sem saber para onde ir? Quantas noites passou acordado, com o coração pesado?',
+      visualSugerido: 'Pessoa contemplativa olhando para o horizonte, silhueta ao pôr do sol',
+      visualUrl: 'https://picsum.photos/seed/cena2/1920/1080',
+      visualTipo: 'stock',
+    },
+    {
+      id: 3,
+      timestamp: '00:45-01:30',
+      texto: 'CTA DE ABERTURA\n\nAntes de começarmos, se inscreva no canal e ative o sininho para não perder nenhuma oração.',
+      visualSugerido: 'Animação suave do botão de inscrição com fundo espiritual',
+      visualUrl: 'https://picsum.photos/seed/cena3/1920/1080',
+      visualTipo: 'gerado',
+    },
+    {
+      id: 4,
+      timestamp: '01:30-05:00',
+      texto: 'ORAÇÃO PRINCIPAL\n\nVamos orar juntos... Senhor, neste momento eu venho até Ti com o coração aberto...',
+      visualSugerido: 'Mãos unidas em oração com luz divina, velas acesas ao fundo',
+      visualUrl: 'https://picsum.photos/seed/cena4/1920/1080',
+      visualTipo: 'gerado',
+    },
+    {
+      id: 5,
+      timestamp: '05:00-06:30',
+      texto: 'CTA DO MEIO\n\nSe esta oração está tocando seu coração, deixe um Amém nos comentários e compartilhe com alguém que precisa.',
+      visualSugerido: 'Coração brilhante com partículas de luz, atmosfera esperançosa',
+      visualUrl: 'https://picsum.photos/seed/cena5/1920/1080',
+      visualTipo: 'gerado',
+    },
+    {
+      id: 6,
+      timestamp: '06:30-FIM',
+      texto: 'FECHAMENTO\n\nQue a paz do Senhor esteja com você hoje e sempre. Fique com Deus.',
+      visualSugerido: 'Céu estrelado com luz divina descendo, sensação de paz',
+      visualUrl: 'https://picsum.photos/seed/cena6/1920/1080',
+      visualTipo: 'gerado',
+    },
+  ]
 }
 
 export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
   const { criacao, estudio, setEstudio, configuracoes, addToast } = useStore()
   const [processing, setProcessing] = useState(false)
   const [selectedCena, setSelectedCena] = useState<number | null>(null)
+
   const isMVP = configuracoes.modo === 'mvp'
+  const isTestMode = configuracoes.appMode === 'test'
+
+  // Model selection per action for next phase
+  const [actionModels, setActionModels] = useState<Record<string, string>>(
+    NEXT_PHASE_ACTIONS.reduce((acc, action) => ({
+      ...acc,
+      [action.id]: action.defaultModel
+    }), {})
+  )
+  const [showModelConfig, setShowModelConfig] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   // Parse script into scenes
   useEffect(() => {
@@ -40,8 +141,16 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
   }, [criacao.roteiro])
 
   const parseScriptToScenes = () => {
+    if (isTestMode) {
+      // Use mock scenes in test mode
+      const mockCenas = getMockCenas(criacao.roteiro)
+      setEstudio({ cenas: mockCenas })
+      addToast({ type: 'success', message: '[TEST MODE] Cenas simuladas carregadas!' })
+      return
+    }
+
     const script = criacao.roteiro
-    const timestampRegex = /\[(\d{2}:\d{2})-(\d{2}:\d{2})\]\s*([^\n]+)\n([\s\S]*?)(?=\[\d{2}:\d{2}|\z)/g
+    const timestampRegex = /\[(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2}|FIM)\]\s*([^\n]+)\n([\s\S]*?)(?=\[\d{2}:\d{2}|$)/g
     const scenes: Cena[] = []
     let match
     let id = 1
@@ -57,27 +166,30 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
       })
     }
 
-    // If no timestamps found, split by paragraphs
+    // If no timestamps found, split by sections
     if (scenes.length === 0) {
-      const paragraphs = script.split('\n\n').filter((p) => p.trim())
-      const timePerParagraph = Math.ceil(420 / paragraphs.length) // Assuming 7min video
+      const sections = script.split(/##\s*/).filter((p) => p.trim())
 
-      paragraphs.forEach((paragraph, i) => {
-        const startSeconds = i * timePerParagraph
-        const endSeconds = Math.min((i + 1) * timePerParagraph, 420)
-        const formatTime = (s: number) =>
-          `${Math.floor(s / 60)
-            .toString()
-            .padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`
+      sections.forEach((section, i) => {
+        const lines = section.trim().split('\n')
+        const title = lines[0] || `Cena ${i + 1}`
+        const content = lines.slice(1).join('\n').trim()
 
         scenes.push({
           id: i + 1,
-          timestamp: `${formatTime(startSeconds)}-${formatTime(endSeconds)}`,
-          texto: paragraph.trim(),
-          visualSugerido: getVisualSuggestion('', paragraph),
+          timestamp: `Cena ${i + 1}`,
+          texto: `${title}\n${content}`,
+          visualSugerido: getVisualSuggestion(title, content),
           visualTipo: 'stock',
         })
       })
+    }
+
+    // Fallback if still no scenes
+    if (scenes.length === 0) {
+      const mockCenas = getMockCenas(script)
+      setEstudio({ cenas: mockCenas })
+      return
     }
 
     setEstudio({ cenas: scenes })
@@ -97,14 +209,17 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
     if (lower.includes('bíblia') || lower.includes('escritura')) {
       return 'Bíblia aberta com luz, ambiente acolhedor'
     }
-    if (lower.includes('final') || lower.includes('encerramento')) {
+    if (lower.includes('final') || lower.includes('encerramento') || lower.includes('fechamento')) {
       return 'Céu azul com nuvens, raios de sol, esperança'
+    }
+    if (lower.includes('cta') || lower.includes('inscreva')) {
+      return 'Animação suave de inscrição, fundo espiritual'
     }
     return 'Imagem serena espiritual, tons quentes e acolhedores'
   }
 
   const generateAudioForScene = async (sceneId: number) => {
-    if (isMVP) {
+    if (isMVP && !isTestMode) {
       addToast({
         type: 'warning',
         message: 'Geração de áudio disponível apenas no Modo Produção',
@@ -117,24 +232,36 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
       const scene = estudio.cenas.find((c) => c.id === sceneId)
       if (!scene) return
 
-      const response = await fetch('/api/elevenlabs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: scene.texto,
-          voice: 'portuguese-female',
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
+      if (isTestMode) {
+        // Mock audio in test mode
+        await new Promise(r => setTimeout(r, 1500))
         const updatedCenas = estudio.cenas.map((c) =>
           c.id === sceneId
-            ? { ...c, audioUrl: data.audioUrl, audioDuracao: data.duration }
+            ? { ...c, audioUrl: 'https://example.com/mock-audio.mp3', audioDuracao: 30 }
             : c
         )
         setEstudio({ cenas: updatedCenas })
-        addToast({ type: 'success', message: 'Áudio gerado!' })
+        addToast({ type: 'success', message: '[TEST MODE] Áudio simulado gerado!' })
+      } else {
+        const response = await fetch('/api/elevenlabs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: scene.texto,
+            voice: 'portuguese-female',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const updatedCenas = estudio.cenas.map((c) =>
+            c.id === sceneId
+              ? { ...c, audioUrl: data.audioUrl, audioDuracao: data.duration }
+              : c
+          )
+          setEstudio({ cenas: updatedCenas })
+          addToast({ type: 'success', message: 'Áudio gerado!' })
+        }
       }
     } catch {
       addToast({ type: 'error', message: 'Erro ao gerar áudio' })
@@ -144,6 +271,18 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
   }
 
   const handleVisualUpload = (sceneId: number) => {
+    if (isTestMode) {
+      // Mock upload in test mode
+      const updatedCenas = estudio.cenas.map((c) =>
+        c.id === sceneId
+          ? { ...c, visualUrl: `https://picsum.photos/seed/upload${Date.now()}/1920/1080`, visualTipo: 'upload' as const }
+          : c
+      )
+      setEstudio({ cenas: updatedCenas })
+      addToast({ type: 'success', message: '[TEST MODE] Upload simulado!' })
+      return
+    }
+
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/*,video/*'
@@ -162,7 +301,7 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
   }
 
   const renderVideo = async () => {
-    if (isMVP) {
+    if (isMVP && !isTestMode) {
       addToast({
         type: 'info',
         message: 'No modo MVP, use o checklist para montar no CapCut',
@@ -175,28 +314,53 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
       // Simulate render progress
       for (let i = 0; i <= 100; i += 10) {
         setEstudio({ progressoRenderizacao: i })
-        await new Promise((r) => setTimeout(r, 500))
+        await new Promise((r) => setTimeout(r, isTestMode ? 200 : 500))
       }
 
-      const response = await fetch('/api/json2video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scenes: estudio.cenas,
-          trilha: estudio.trilhaSonora,
-        }),
-      })
+      if (isTestMode) {
+        setEstudio({
+          videoRenderizado: 'https://example.com/mock-video.mp4',
+          progressoRenderizacao: 100
+        })
+        addToast({ type: 'success', message: '[TEST MODE] Vídeo simulado renderizado!' })
+      } else {
+        const response = await fetch('/api/json2video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenes: estudio.cenas,
+            trilha: estudio.trilhaSonora,
+          }),
+        })
 
-      if (response.ok) {
-        const data = await response.json()
-        setEstudio({ videoRenderizado: data.videoUrl, progressoRenderizacao: 100 })
-        addToast({ type: 'success', message: 'Vídeo renderizado com sucesso!' })
+        if (response.ok) {
+          const data = await response.json()
+          setEstudio({ videoRenderizado: data.videoUrl, progressoRenderizacao: 100 })
+          addToast({ type: 'success', message: 'Vídeo renderizado com sucesso!' })
+        }
       }
     } catch {
       addToast({ type: 'error', message: 'Erro na renderização' })
     } finally {
       setProcessing(false)
     }
+  }
+
+  const handleModelChange = (actionId: string, modelId: string) => {
+    setActionModels(prev => ({
+      ...prev,
+      [actionId]: modelId
+    }))
+    setOpenDropdown(null)
+  }
+
+  const getModelById = (modelId: string) => AI_MODELS.find(m => m.id === modelId)
+
+  const calculateTotalCost = () => {
+    return Object.values(actionModels).reduce((total, modelId) => {
+      const model = getModelById(modelId)
+      return total + (model?.cost || 0)
+    }, 0)
   }
 
   return (
@@ -217,13 +381,20 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
               Estúdio de Montagem
             </h2>
             <p className="text-sm text-text-secondary">
-              {isMVP
+              {isTestMode
+                ? '[TEST MODE] Cenas simuladas para visualização'
+                : isMVP
                 ? 'Revise as cenas e exporte para montagem manual'
                 : 'Configure as cenas para renderização automática'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {isTestMode && (
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
+              TEST MODE
+            </span>
+          )}
           <span
             className={`px-3 py-1 rounded-full text-xs font-medium ${
               isMVP
@@ -336,9 +507,9 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
                         }}
                         icon={<Upload className="w-4 h-4" />}
                       >
-                        Upload Visual
+                        {isTestMode ? 'Simular Upload' : 'Upload Visual'}
                       </Button>
-                      {!isMVP && (
+                      {(!isMVP || isTestMode) && (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -349,7 +520,7 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
                           loading={processing}
                           icon={<Volume2 className="w-4 h-4" />}
                         >
-                          Gerar Áudio
+                          {isTestMode ? 'Simular Áudio' : 'Gerar Áudio'}
                         </Button>
                       )}
                       <Button
@@ -362,10 +533,15 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
                     </div>
 
                     {/* Audio Player */}
-                    {cena.audioUrl && (
+                    {cena.audioUrl && !isTestMode && (
                       <audio controls className="w-full mt-2">
                         <source src={cena.audioUrl} type="audio/mpeg" />
                       </audio>
+                    )}
+                    {cena.audioUrl && isTestMode && (
+                      <div className="p-2 bg-amber-500/10 rounded-lg text-xs text-amber-400">
+                        [TEST MODE] Áudio simulado - {cena.audioUrl}
+                      </div>
                     )}
                   </motion.div>
                 )}
@@ -376,7 +552,7 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
       </Card>
 
       {/* MVP Checklist / Production Render */}
-      {isMVP ? (
+      {(isMVP && !isTestMode) ? (
         <Card variant="gradient">
           <CardHeader>
             <CardTitle>Checklist de Produção Manual</CardTitle>
@@ -407,9 +583,13 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Renderização Automática</CardTitle>
+            <CardTitle>
+              {isTestMode ? '[TEST MODE] Renderização Simulada' : 'Renderização Automática'}
+            </CardTitle>
             <CardDescription>
-              O sistema irá combinar áudio, vídeo e trilha automaticamente
+              {isTestMode
+                ? 'Simulação do processo de renderização'
+                : 'O sistema irá combinar áudio, vídeo e trilha automaticamente'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -424,8 +604,8 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
                 </div>
                 <p className="text-center text-sm text-text-secondary">
                   {estudio.progressoRenderizacao < 100
-                    ? `Renderizando... ${estudio.progressoRenderizacao}%`
-                    : 'Renderização concluída!'}
+                    ? `${isTestMode ? '[MOCK] ' : ''}Renderizando... ${estudio.progressoRenderizacao}%`
+                    : `${isTestMode ? '[MOCK] ' : ''}Renderização concluída!`}
                 </p>
               </div>
             ) : (
@@ -435,12 +615,147 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
                 icon={<Video className="w-4 h-4" />}
                 className="w-full"
               >
-                Iniciar Renderização
+                {isTestMode ? 'Simular Renderização' : 'Iniciar Renderização'}
               </Button>
             )}
           </CardContent>
         </Card>
       )}
+
+      {/* Next Phase Model Configuration */}
+      <Card>
+        <CardContent className="p-4">
+          <button
+            onClick={() => setShowModelConfig(!showModelConfig)}
+            className="w-full flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent-purple/20 flex items-center justify-center">
+                <Settings2 className="w-5 h-5 text-accent-purple" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-medium text-text-primary">
+                  Próxima Etapa: Entrega
+                </h3>
+                <p className="text-sm text-text-secondary">
+                  {showModelConfig
+                    ? 'Configurar modelos por ação'
+                    : `${NEXT_PHASE_ACTIONS.length} ações • Custo estimado: ${isTestMode ? '$0.00' : `$${calculateTotalCost().toFixed(4)}`}`}
+                </p>
+              </div>
+            </div>
+            {showModelConfig ? (
+              <ChevronUp className="w-5 h-5 text-text-secondary" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-text-secondary" />
+            )}
+          </button>
+
+          <AnimatePresence>
+            {showModelConfig && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+                  {NEXT_PHASE_ACTIONS.map((action) => {
+                    const selectedModel = getModelById(actionModels[action.id])
+                    const isOpen = openDropdown === action.id
+
+                    return (
+                      <div key={action.id} className="p-3 rounded-xl bg-background/50">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-text-primary">
+                              {action.label}
+                            </p>
+                            <p className="text-xs text-text-secondary truncate">
+                              {action.description}
+                            </p>
+                          </div>
+
+                          {/* Model Selector */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenDropdown(isOpen ? null : action.id)
+                              }}
+                              className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors min-w-[180px]"
+                            >
+                              <Zap className="w-4 h-4 text-accent-purple flex-shrink-0" />
+                              <div className="flex-1 text-left">
+                                <p className="text-sm text-text-primary truncate">
+                                  {selectedModel?.name}
+                                </p>
+                                <p className="text-xs text-text-secondary">
+                                  {selectedModel?.provider} • {isTestMode ? '$0.00' : `$${selectedModel?.cost.toFixed(4)}`}
+                                </p>
+                              </div>
+                              <ChevronDown
+                                className={`w-4 h-4 text-text-secondary transition-transform flex-shrink-0 ${
+                                  isOpen ? 'rotate-180' : ''
+                                }`}
+                              />
+                            </button>
+
+                            {/* Dropdown */}
+                            <AnimatePresence>
+                              {isOpen && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: -10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  className="absolute top-full right-0 mt-1 w-64 bg-card border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-64 overflow-y-auto"
+                                >
+                                  {AI_MODELS.map((model) => (
+                                    <button
+                                      key={model.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleModelChange(action.id, model.id)
+                                      }}
+                                      className={`w-full flex items-center justify-between p-3 hover:bg-white/5 text-left ${
+                                        model.id === actionModels[action.id] ? 'bg-accent-purple/10' : ''
+                                      }`}
+                                    >
+                                      <div>
+                                        <p className="text-sm font-medium text-text-primary">
+                                          {model.name}
+                                        </p>
+                                        <p className="text-xs text-text-secondary">
+                                          {model.provider} • {model.speed}
+                                        </p>
+                                      </div>
+                                      <span className="text-xs text-status-success font-mono">
+                                        {isTestMode ? '$0.00' : `$${model.cost.toFixed(4)}`}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Total Cost */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-accent-purple/10 border border-accent-purple/20">
+                    <span className="text-sm text-text-secondary">Custo total estimado:</span>
+                    <span className="text-sm font-bold text-text-primary">
+                      {isTestMode ? '$0.00 (Test Mode)' : `$${calculateTotalCost().toFixed(4)}`}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </CardContent>
+      </Card>
 
       {/* Actions */}
       <div className="flex justify-between">
