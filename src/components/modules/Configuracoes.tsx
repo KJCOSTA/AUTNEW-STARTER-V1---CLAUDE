@@ -86,11 +86,14 @@ const COSTS = {
   thumbnail: {
     'dalle-standard': 0.04,
     'dalle-hd': 0.08,
+    unsplash: 0, // FREE
+    pexels: 0, // FREE
     manual: 0,
   },
   narracao: {
     'elevenlabs-multilingual': 0.30, // ~6 min video
     'elevenlabs-turbo': 0.12,
+    'edge-tts': 0, // FREE - Microsoft Neural Voices
     manual: 0,
     'capcut-tts': 0,
   },
@@ -103,15 +106,37 @@ const COSTS = {
     'youtube-api': 0,
     manual: 0,
   },
+  // Media sources for scenes
+  media: {
+    pexels: 0, // FREE
+    pixabay: 0, // FREE
+    unsplash: 0, // FREE
+    dalle: 0.04,
+    runway: 3.00, // per 5 second clip
+  },
 }
 
 // Pre-defined modes
 const PREDEFINED_MODES = [
   {
+    id: 'smart-economy' as OperationMode,
+    nome: 'Smart Economy',
+    custo: '$3-8/vídeo',
+    indicador: '⚡ Recomendado - Economia inteligente com qualidade',
+    recomendado: true,
+    config: {
+      roteiro: 'Gemini (grátis)',
+      thumbnail: 'Unsplash/Pexels (grátis) + DALL-E',
+      narracao: 'Edge TTS (grátis) ou ElevenLabs',
+      video: 'Pexels/Pixabay (grátis) → JSON2Video',
+    },
+    description: 'Busca recursos gratuitos primeiro. Até 95% de economia.',
+  },
+  {
     id: 'mvp' as OperationMode,
     nome: 'MVP Gratuito',
     custo: '$0/mês',
-    indicador: 'Mais econômico',
+    indicador: 'Totalmente gratuito, montagem manual',
     recomendado: false,
     config: {
       roteiro: 'Gemini (grátis)',
@@ -124,8 +149,8 @@ const PREDEFINED_MODES = [
     id: 'producao' as OperationMode,
     nome: 'Automação Completa',
     custo: '$10-15/mês',
-    indicador: '⭐ Recomendado - Vídeo pronto automaticamente',
-    recomendado: true,
+    indicador: 'Vídeo pronto automaticamente',
+    recomendado: false,
     config: {
       roteiro: 'Gemini (grátis)',
       thumbnail: 'DALL-E (~$0.08 cada)',
@@ -136,14 +161,14 @@ const PREDEFINED_MODES = [
   {
     id: 'full-ai' as OperationMode,
     nome: 'Full AI Premium',
-    custo: '$25-40/mês',
-    indicador: 'Máxima qualidade e automação',
+    custo: '$40-60/vídeo',
+    indicador: 'Máxima qualidade, tudo gerado por IA',
     recomendado: false,
     config: {
       roteiro: 'Gemini + refinamento GPT-4',
       thumbnail: 'DALL-E HD',
       narracao: 'ElevenLabs (voz premium)',
-      video: 'JSON2Video + imagens de cena IA',
+      video: 'Runway + JSON2Video (100% IA)',
     },
   },
 ]
@@ -344,6 +369,7 @@ export function Configuracoes() {
     setConfiguracoes({ modo: mode })
 
     const modeLabels: Record<OperationMode, string> = {
+      'smart-economy': 'Smart Economy',
       'mvp': 'MVP Gratuito',
       'producao': 'Automação Completa',
       'full-ai': 'Full AI Premium',

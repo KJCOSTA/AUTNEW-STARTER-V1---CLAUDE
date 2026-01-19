@@ -294,15 +294,16 @@ export interface APIStatusInfo {
 }
 
 // Settings
-export type OperationMode = 'mvp' | 'producao' | 'full-ai' | 'custom'
+export type OperationMode = 'mvp' | 'producao' | 'full-ai' | 'smart-economy' | 'custom'
 
 // Custom Mode Step Options
 export type RoteiroOption = 'gemini' | 'gpt4' | 'manual'
 export type TituloSeoOption = 'gemini' | 'gpt4'
-export type ThumbnailOption = 'dalle-standard' | 'dalle-hd' | 'manual'
-export type NarracaoOption = 'elevenlabs-multilingual' | 'elevenlabs-turbo' | 'manual' | 'capcut-tts'
+export type ThumbnailOption = 'dalle-standard' | 'dalle-hd' | 'manual' | 'unsplash' | 'pexels'
+export type NarracaoOption = 'elevenlabs-multilingual' | 'elevenlabs-turbo' | 'edge-tts' | 'manual' | 'capcut-tts'
 export type VideoOption = 'json2video' | 'capcut' | 'remotion'
 export type UploadOption = 'youtube-api' | 'manual'
+export type MediaSourceOption = 'pexels' | 'pixabay' | 'unsplash' | 'dalle' | 'runway' | 'manual'
 
 export interface CustomModeConfig {
   nome: string
