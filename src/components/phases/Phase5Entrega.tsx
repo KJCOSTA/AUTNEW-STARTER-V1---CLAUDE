@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Sparkles,
   Save,
+  FlaskConical,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -42,6 +43,7 @@ export function Phase5Entrega({ onReset }: Phase5EntregaProps) {
   const [publishing, setPublishing] = useState(false)
   const [scheduleDate, setScheduleDate] = useState('')
   const isMVP = configuracoes.modo === 'mvp'
+  const isTestMode = configuracoes.appMode === 'test'
 
   // Get selected option data
   const selectedOption = criacao.opcoes.find(
@@ -114,6 +116,21 @@ Neste vídeo, você encontrará uma ${
   }
 
   const handlePublish = async () => {
+    // Test Mode: simulate publish
+    if (isTestMode) {
+      setPublishing(true)
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      setEntrega({ ...deliveryData, publicadoYouTube: true })
+      addToast({
+        type: 'success',
+        message: scheduleDate
+          ? '[TEST] Vídeo agendado com sucesso!'
+          : '[TEST] Vídeo publicado com sucesso!',
+      })
+      setPublishing(false)
+      return
+    }
+
     if (!configuracoes.youtube.conectado) {
       addToast({
         type: 'warning',
@@ -189,6 +206,17 @@ Neste vídeo, você encontrará uma ${
     >
       {/* Success Header */}
       <div className="text-center py-6">
+        {/* Test Mode Badge */}
+        {isTestMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-status-warning/10 border border-status-warning/30 rounded-full text-status-warning text-sm mb-4"
+          >
+            <FlaskConical className="w-4 h-4" />
+            <span>Test Mode - Dados simulados</span>
+          </motion.div>
+        )}
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -368,8 +396,14 @@ Neste vídeo, você encontrará uma ${
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {configuracoes.youtube.conectado ? (
+          {configuracoes.youtube.conectado || isTestMode ? (
             <>
+              {isTestMode && !configuracoes.youtube.conectado && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-status-warning/10 border border-status-warning/20 rounded-lg text-xs text-status-warning mb-2">
+                  <FlaskConical className="w-3 h-3" />
+                  <span>Test Mode: Publicação será simulada</span>
+                </div>
+              )}
               <div className="flex items-center gap-4">
                 <Input
                   type="datetime-local"

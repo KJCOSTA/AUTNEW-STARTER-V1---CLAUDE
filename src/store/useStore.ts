@@ -81,6 +81,8 @@ const initialDiretrizes: Diretrizes = {
     fechamento: 'Mensagem de esperança e fé',
     ctaFinal: 'Inscrição + Grupo VIP WhatsApp',
   },
+  // Custom diretrizes per action
+  diretrizesCustomizadas: [],
 }
 
 // Default diretriz profile
@@ -100,15 +102,43 @@ const initialConfiguracoes: Configuracoes = {
     openai: '',
     elevenlabs: '',
     json2video: '',
+    anthropic: '',
+    groq: '',
+    mistral: '',
+    stabilityai: '',
+    replicate: '',
+    pexels: '',
+    pixabay: '',
+  },
+  apiKeysCustom: [],
+  apiKeysAtivo: {
+    gemini: true,
+    openai: true,
+    anthropic: true,
+    elevenlabs: true,
+    json2video: true,
+    groq: true,
+    mistral: true,
+    stabilityai: true,
+    replicate: true,
+    pexels: true,
+    pixabay: true,
   },
   youtube: {
     conectado: false,
     canalNome: '',
   },
+  googleDrive: {
+    conectado: false,
+  },
   personalizacao: {
     nomeCanal: 'Mundo da Prece',
     nicho: 'Espiritualidade',
     tomComunicacao: 'Acolhedor, suave, esperançoso',
+  },
+  json2video: {
+    useWatermark: true,
+    previewMode: true,
   },
 }
 

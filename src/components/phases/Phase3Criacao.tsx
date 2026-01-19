@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Palette,
   Image,
@@ -8,6 +8,8 @@ import {
   RefreshCw,
   Loader2,
   Wand2,
+  Settings2,
+  FlaskConical,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -18,25 +20,167 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
+  ActionModelSelector,
 } from '../ui'
 import type { OpcaoCriacao } from '../../types'
+import { CRIACAO_TO_ESTUDIO_ACTIONS, estimateCost } from '../../config/aiRegistry'
 
 interface Phase3CriacaoProps {
   onNext: () => void
   onBack: () => void
 }
 
+// Mock options generator for Test Mode
+function getMockOptions(tema: string, gatilhos: string[]): OpcaoCriacao[] {
+  const gatilho0 = gatilhos[0] || 'esperança'
+
+  return [
+    {
+      id: 1,
+      titulo: `${tema || 'Oração'} - Oração Poderosa Para Sua Vida`,
+      conceitoThumbnail:
+        'Pessoa idosa de mãos postas em oração, luz dourada celestial ao fundo, expressão de paz e serenidade',
+      goldenHook:
+        'Você já sentiu que suas orações não estão sendo ouvidas? Nos próximos minutos, eu vou te mostrar como conectar seu coração diretamente com Deus...',
+      thumbnailUrl: 'https://picsum.photos/seed/opt1/1280/720',
+      thumbnailPrompt:
+        'Elderly person with hands in prayer, golden celestial light background, peaceful serene expression, spiritual atmosphere, 16:9 aspect ratio',
+    },
+    {
+      id: 2,
+      titulo: `PARE TUDO e Faça Esta Oração Agora - Oração Guiada`,
+      conceitoThumbnail:
+        'Mãos erguidas para o céu com raios de luz, nuvens celestiais, atmosfera de milagre',
+      goldenHook:
+        'Esta oração mudou a vida de milhares de pessoas. E hoje, ela pode mudar a sua também...',
+      thumbnailUrl: 'https://picsum.photos/seed/opt2/1280/720',
+      thumbnailPrompt:
+        'Hands raised to the sky with rays of light, celestial clouds, miracle atmosphere, spiritual, 16:9 aspect ratio',
+    },
+    {
+      id: 3,
+      titulo: `A Oração Que Deus Sempre Ouve - ${gatilho0.charAt(0).toUpperCase() + gatilho0.slice(1)} e Fé`,
+      conceitoThumbnail:
+        'Bíblia aberta com luz emanando, ambiente acolhedor e espiritual, tons quentes',
+      goldenHook:
+        'Existe uma forma de orar que toca o coração de Deus instantaneamente. E ela está esquecida pela maioria das pessoas...',
+      thumbnailUrl: 'https://picsum.photos/seed/opt3/1280/720',
+      thumbnailPrompt:
+        'Open Bible with light emanating, cozy spiritual environment, warm tones, divine presence, 16:9 aspect ratio',
+    },
+  ]
+}
+
+// Mock script generator for Test Mode
+function getMockRoteiro(tema: string, titulo: string, goldenHook: string): string {
+  return `# ROTEIRO: ${titulo}
+
+## [00:00 - 00:15] ABERTURA MAGNÉTICA
+
+[MÚSICA SUAVE DE FUNDO]
+
+${goldenHook}
+
+[PAUSA DE 3 SEGUNDOS]
+
+---
+
+## [00:15 - 00:45] GANCHO EMOCIONAL
+
+Talvez você esteja passando por um momento difícil...
+Talvez o peso da vida esteja te sufocando...
+Mas eu quero que você saiba: você não está sozinho.
+
+Deus está aqui, agora, neste exato momento, esperando você abrir seu coração.
+
+---
+
+## [00:45 - 01:30] CTA DE ABERTURA
+
+Antes de começarmos esta oração poderosa sobre ${tema || 'oração'}, se inscreva no canal e ative o sininho.
+Assim você recebe todas as nossas orações diárias.
+
+---
+
+## [01:30 - 05:00] ORAÇÃO PRINCIPAL
+
+[MÚSICA MAIS SUAVE]
+
+Vamos orar juntos...
+
+Senhor, neste momento eu venho até Ti com o coração aberto...
+
+[PAUSA PARA RESPIRAÇÃO]
+
+Peço que derrame sobre mim e sobre quem está ouvindo esta oração,
+toda a paz e esperança que tanto precisamos...
+
+[PAUSA]
+
+Sei que muitos estão passando por momentos difíceis...
+Mas também sei que Tu és maior do que qualquer problema...
+
+[PAUSA LONGA]
+
+Amém.
+
+---
+
+## [05:00 - 06:30] CTA DO MEIO
+
+Se esta oração está tocando seu coração, deixe um "Amém" nos comentários.
+E não se esqueça de compartilhar com alguém que precisa ouvir isso hoje.
+
+---
+
+## [06:30 - 07:30] FECHAMENTO COM ESPERANÇA
+
+Lembre-se: você é amado.
+Você é especial aos olhos de Deus.
+Não importa o que esteja enfrentando, Ele está trabalhando em seu favor neste exato momento.
+
+Que a paz do Senhor esteja com você hoje e sempre.
+
+---
+
+## [07:30 - FIM] CTA FINAL
+
+Se você quer receber mais orações como esta, entre no nosso Grupo VIP do WhatsApp.
+O link está na descrição.
+
+Até a próxima oração. Fique com Deus. 🙏
+
+[FADE OUT MÚSICA]
+
+---
+
+**FIM DO ROTEIRO**
+`
+}
+
 export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
   const {
     gatilho,
-    inteligencia,
     criacao,
     setCriacao,
     diretrizes,
     addToast,
+    configuracoes,
   } = useStore()
+
+  const isTestMode = configuracoes.appMode === 'test'
+
   const [generating, setGenerating] = useState(false)
   const [generatingThumb, setGeneratingThumb] = useState<number | null>(null)
+
+  // Model selection per action for next phase - using AI Registry
+  const [modelSelections, setModelSelections] = useState<Record<string, { provider: string; model: string }>>(
+    CRIACAO_TO_ESTUDIO_ACTIONS.reduce((acc, action) => ({
+      ...acc,
+      [action.id]: { provider: action.defaultProvider, model: action.defaultModel }
+    }), {})
+  )
+  const [showModelConfig, setShowModelConfig] = useState(false)
 
   // Generate options on mount if not already generated
   useEffect(() => {
@@ -48,63 +192,46 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
   const generateOptions = async () => {
     setGenerating(true)
     try {
-      const response = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'generate-options',
-          tema: gatilho.tema,
-          tipoConteudo: gatilho.tipoConteudo,
-          gatilhos: gatilho.gatilhosEmocionais,
-          duracao: gatilho.duracao,
-          inteligencia,
-          diretrizes,
-        }),
-      })
+      let options: OpcaoCriacao[]
 
-      let options: OpcaoCriacao[] = [
-        {
-          id: 1,
-          titulo: `${gatilho.tema} - Oração Poderosa Para Sua Vida`,
-          conceitoThumbnail:
-            'Pessoa idosa de mãos postas em oração, luz dourada celestial ao fundo, expressão de paz e serenidade',
-          goldenHook:
-            'Você já sentiu que suas orações não estão sendo ouvidas? Nos próximos minutos, eu vou te mostrar como conectar seu coração diretamente com Deus...',
-          thumbnailPrompt:
-            'Elderly person with hands in prayer, golden celestial light background, peaceful serene expression, spiritual atmosphere, 16:9 aspect ratio',
-        },
-        {
-          id: 2,
-          titulo: `PARE TUDO e Faça Esta Oração Agora - ${gatilho.tipoConteudo === 'oracao-guiada' ? 'Oração Guiada' : 'Meditação'}`,
-          conceitoThumbnail:
-            'Mãos erguidas para o céu com raios de luz, nuvens celestiais, atmosfera de milagre',
-          goldenHook:
-            'Esta oração mudou a vida de milhares de pessoas. E hoje, ela pode mudar a sua também...',
-          thumbnailPrompt:
-            'Hands raised to the sky with rays of light, celestial clouds, miracle atmosphere, spiritual, 16:9 aspect ratio',
-        },
-        {
-          id: 3,
-          titulo: `A Oração Que Deus Sempre Ouve - ${gatilho.gatilhosEmocionais[0] || 'Esperança'} e Fé`,
-          conceitoThumbnail:
-            'Bíblia aberta com luz emanando, ambiente acolhedor e espiritual, tons quentes',
-          goldenHook:
-            'Existe uma forma de orar que toca o coração de Deus instantaneamente. E ela está esquecida pela maioria das pessoas...',
-          thumbnailPrompt:
-            'Open Bible with light emanating, cozy spiritual environment, warm tones, divine presence, 16:9 aspect ratio',
-        },
-      ]
+      if (isTestMode) {
+        // Use mock data in test mode
+        await new Promise(r => setTimeout(r, 1500))
+        options = getMockOptions(gatilho.tema, gatilho.gatilhosEmocionais)
+        addToast({ type: 'success', message: '[TEST MODE] Opções simuladas geradas!' })
+      } else {
+        // Real API call
+        try {
+          const response = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'generate-options',
+              tema: gatilho.tema,
+              tipoConteudo: gatilho.tipoConteudo,
+              gatilhos: gatilho.gatilhosEmocionais,
+              duracao: gatilho.duracao,
+              diretrizes,
+            }),
+          })
 
-      if (response.ok) {
-        const data = await response.json()
-        if (data.options && data.options.length > 0) {
-          options = data.options
+          if (response.ok) {
+            const data = await response.json()
+            options = data.options && data.options.length > 0
+              ? data.options
+              : getMockOptions(gatilho.tema, gatilho.gatilhosEmocionais)
+          } else {
+            throw new Error('API Error')
+          }
+        } catch {
+          // Fallback to mock
+          options = getMockOptions(gatilho.tema, gatilho.gatilhosEmocionais)
         }
+        addToast({ type: 'success', message: 'Opções geradas com sucesso!' })
       }
 
       setCriacao({ opcoes: options, opcaoSelecionada: null })
-      addToast({ type: 'success', message: 'Opções geradas com sucesso!' })
-    } catch (error) {
+    } catch {
       addToast({ type: 'error', message: 'Erro ao gerar opções' })
     } finally {
       setGenerating(false)
@@ -117,26 +244,38 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
 
     setGeneratingThumb(optionId)
     try {
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'generate-thumbnail',
-          prompt: option.thumbnailPrompt || option.conceitoThumbnail,
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
+      if (isTestMode) {
+        // Mock thumbnail in test mode
+        await new Promise(r => setTimeout(r, 1000))
         const updatedOptions = criacao.opcoes.map((o) =>
-          o.id === optionId ? { ...o, thumbnailUrl: data.imageUrl } : o
+          o.id === optionId
+            ? { ...o, thumbnailUrl: `https://picsum.photos/seed/thumb${Date.now()}/1280/720` }
+            : o
         )
         setCriacao({ opcoes: updatedOptions })
-        addToast({ type: 'success', message: 'Thumbnail gerada!' })
+        addToast({ type: 'success', message: '[TEST MODE] Thumbnail simulada!' })
       } else {
-        throw new Error('Erro na API')
+        const response = await fetch('/api/openai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate-thumbnail',
+            prompt: option.thumbnailPrompt || option.conceitoThumbnail,
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const updatedOptions = criacao.opcoes.map((o) =>
+            o.id === optionId ? { ...o, thumbnailUrl: data.imageUrl } : o
+          )
+          setCriacao({ opcoes: updatedOptions })
+          addToast({ type: 'success', message: 'Thumbnail gerada!' })
+        } else {
+          throw new Error('API Error')
+        }
       }
-    } catch (error) {
+    } catch {
       addToast({
         type: 'warning',
         message: 'Erro ao gerar thumbnail. Configure a API Key da OpenAI.',
@@ -158,75 +297,58 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         (o) => o.id === criacao.opcaoSelecionada
       )
 
-      const response = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'generate-script',
-          tema: gatilho.tema,
-          tipoConteudo: gatilho.tipoConteudo,
-          gatilhos: gatilho.gatilhosEmocionais,
-          duracao: gatilho.duracao,
-          observacoes: gatilho.observacoesEspeciais,
-          titulo: selectedOption?.titulo,
-          goldenHook: selectedOption?.goldenHook,
-          inteligencia,
-          diretrizes,
-        }),
-      })
+      let roteiro: string
 
-      let roteiro = `[00:00-00:15] ABERTURA MAGNÉTICA
-${selectedOption?.goldenHook}
+      if (isTestMode) {
+        // Use mock script in test mode
+        await new Promise(r => setTimeout(r, 2000))
+        roteiro = getMockRoteiro(
+          gatilho.tema,
+          selectedOption?.titulo || 'Oração Poderosa',
+          selectedOption?.goldenHook || ''
+        )
+        addToast({ type: 'success', message: '[TEST MODE] Roteiro simulado gerado!' })
+      } else {
+        try {
+          const response = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'generate-script',
+              tema: gatilho.tema,
+              tipoConteudo: gatilho.tipoConteudo,
+              gatilhos: gatilho.gatilhosEmocionais,
+              duracao: gatilho.duracao,
+              observacoes: gatilho.observacoesEspeciais,
+              titulo: selectedOption?.titulo,
+              goldenHook: selectedOption?.goldenHook,
+              diretrizes,
+            }),
+          })
 
-[00:15-00:30] GANCHO EMOCIONAL
-Talvez você esteja passando por um momento difícil... Talvez o peso da vida esteja te sufocando... Mas eu quero que você saiba: você não está sozinho. Deus está aqui, agora, neste exato momento, esperando você abrir seu coração.
-
-[00:30-01:30] DESENVOLVIMENTO - PARTE 1
-Vamos juntos nesta jornada de oração. Feche seus olhos... Respire fundo... [pausa de 3 segundos]
-
-Senhor, eu venho até Ti com o coração aberto. Tu conheces cada dor que carrego, cada medo que me paralisa, cada lágrima que derramei em silêncio.
-
-[01:30-03:00] DESENVOLVIMENTO - PARTE 2
-[pausa suave] A Bíblia nos ensina em Filipenses 4:6-7: "Não andem ansiosos por coisa alguma, mas em tudo, pela oração e súplicas, com ação de graças, apresentem seus pedidos a Deus."
-
-${diretrizes.ctasObrigatorios.meio}
-
-[03:00-05:00] ORAÇÃO CENTRAL
-Pai Celestial... [voz mais suave, pausada]
-Eu entrego nas Tuas mãos todos os meus medos...
-Todas as minhas preocupações...
-Todos os meus sonhos...
-[pausa de 2 segundos]
-
-Tu és o Deus que acalma tempestades...
-Tu és o Deus que cura feridas...
-Tu és o Deus que restaura esperanças...
-
-[05:00-06:00] MOMENTO DE SILÊNCIO E REFLEXÃO
-[música suave ao fundo]
-Fique em silêncio agora... Permita que a presença de Deus preencha cada espaço vazio do seu coração...
-[pausa de 10 segundos]
-
-[06:00-07:00] ENCERRAMENTO COM ESPERANÇA
-Lembre-se sempre: você é amado. Você é especial aos olhos de Deus. Não importa o que esteja enfrentando, Ele está trabalhando em seu favor neste exato momento.
-
-[07:00-07:30] CTA FINAL
-${diretrizes.ctasObrigatorios.fechamento}
-
-Se esta oração tocou seu coração, deixe um "amém" nos comentários. E não se esqueça de se inscrever no canal para receber mais orações como esta.
-
-Que a paz do Senhor esteja com você. Até a próxima. 🙏`
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.script) {
-          roteiro = data.script
+          if (response.ok) {
+            const data = await response.json()
+            roteiro = data.script || getMockRoteiro(
+              gatilho.tema,
+              selectedOption?.titulo || '',
+              selectedOption?.goldenHook || ''
+            )
+          } else {
+            throw new Error('API Error')
+          }
+        } catch {
+          // Fallback to mock
+          roteiro = getMockRoteiro(
+            gatilho.tema,
+            selectedOption?.titulo || '',
+            selectedOption?.goldenHook || ''
+          )
         }
+        addToast({ type: 'success', message: 'Roteiro gerado com sucesso!' })
       }
 
       setCriacao({ roteiro })
-      addToast({ type: 'success', message: 'Roteiro gerado com sucesso!' })
-    } catch (error) {
+    } catch {
       addToast({ type: 'error', message: 'Erro ao gerar roteiro' })
     } finally {
       setGenerating(false)
@@ -236,9 +358,23 @@ Que a paz do Senhor esteja com você. Até a próxima. 🙏`
   const handleSelectOption = (id: number) => {
     setCriacao({ opcaoSelecionada: id })
     if (!criacao.roteiro) {
-      // Auto-generate script when selecting option
       setTimeout(() => generateRoteiro(), 100)
     }
+  }
+
+  const handleModelChange = (actionId: string, providerId: string, modelId: string) => {
+    setModelSelections(prev => ({
+      ...prev,
+      [actionId]: { provider: providerId, model: modelId }
+    }))
+  }
+
+  const calculateTotalCost = () => {
+    return CRIACAO_TO_ESTUDIO_ACTIONS.reduce((total, action) => {
+      const selection = modelSelections[action.id]
+      if (!selection) return total
+      return total + estimateCost(selection.provider, selection.model, action.estimatedTokens)
+    }, 0)
   }
 
   const canProceed = criacao.opcaoSelecionada !== null && criacao.roteiro.trim() !== ''
@@ -261,7 +397,9 @@ Que a paz do Senhor esteja com você. Até a próxima. 🙏`
               <div>
                 <CardTitle>Estratégia de Título e Thumbnail</CardTitle>
                 <CardDescription>
-                  Selecione a opção que mais combina com seu conteúdo
+                  {isTestMode
+                    ? '[TEST MODE] Opções simuladas - selecione uma'
+                    : 'Selecione a opção que mais combina com seu conteúdo'}
                 </CardDescription>
               </div>
             </div>
@@ -281,7 +419,9 @@ Que a paz do Senhor esteja com você. Até a próxima. 🙏`
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-accent-blue mx-auto mb-4" />
-                <p className="text-text-secondary">Gerando opções criativas...</p>
+                <p className="text-text-secondary">
+                  {isTestMode ? '[TEST MODE] Gerando opções simuladas...' : 'Gerando opções criativas...'}
+                </p>
               </div>
             </div>
           ) : (
@@ -403,6 +543,70 @@ Que a paz do Senhor esteja com você. Até a próxima. 🙏`
           )}
         </CardContent>
       </Card>
+
+      {/* Next Phase Model Configuration */}
+      {canProceed && (
+        <Card>
+          <CardContent className="p-4">
+            <button
+              onClick={() => setShowModelConfig(!showModelConfig)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-accent-purple/20 flex items-center justify-center">
+                  <Settings2 className="w-5 h-5 text-accent-purple" />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-medium text-text-primary">
+                    Próxima Etapa: Estúdio
+                  </h3>
+                  <p className="text-sm text-text-secondary">
+                    {showModelConfig
+                      ? 'Configurar modelos por ação'
+                      : `${CRIACAO_TO_ESTUDIO_ACTIONS.length} ações • Custo estimado: ${isTestMode ? '$0.00' : `$${calculateTotalCost().toFixed(4)}`}`}
+                  </p>
+                </div>
+              </div>
+              {showModelConfig ? (
+                <svg className="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {showModelConfig && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    {isTestMode && (
+                      <div className="flex items-center gap-2 px-3 py-2 mb-4 bg-status-warning/10 border border-status-warning/20 rounded-lg text-xs text-status-warning">
+                        <FlaskConical className="w-3 h-3" />
+                        <span>Test Mode: custos simulados</span>
+                      </div>
+                    )}
+                    <ActionModelSelector
+                      actions={CRIACAO_TO_ESTUDIO_ACTIONS}
+                      modelSelections={modelSelections}
+                      onModelChange={handleModelChange}
+                      title="Modelos para Estúdio"
+                      description="Selecione o modelo para cada ação"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Actions */}
       <div className="flex justify-between">
