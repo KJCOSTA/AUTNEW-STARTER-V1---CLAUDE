@@ -169,8 +169,84 @@ export function Monitor() {
     checkStatus()
   }, [])
 
+  // API key mapping for checking configuration
+  const apiKeyMapping: Record<string, keyof typeof configuracoes.apiKeys> = {
+    Gemini: 'gemini',
+    OpenAI: 'openai',
+    Claude: 'anthropic',
+    ElevenLabs: 'elevenlabs',
+    JSON2Video: 'json2video',
+    Groq: 'groq',
+  }
+
+  // Check if API key is configured
+  const isApiKeyConfigured = (apiName: string): boolean => {
+    const keyName = apiKeyMapping[apiName]
+    if (!keyName) return true // APIs without keys (Edge TTS, YouTube)
+    const key = configuracoes.apiKeys[keyName]
+    return !!key && key.trim().length > 0
+  }
+
+  // Get specific error message with solution
+  const getErrorMessageWithSolution = (apiName: string, errorType: string, details?: string): string => {
+    const solutions: Record<string, Record<string, string>> = {
+      Gemini: {
+        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > Gemini',
+        'invalid-key': 'API Key inválida. Verifique em aistudio.google.com',
+        'quota-exceeded': 'Quota excedida. Aguarde ou atualize seu plano',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      OpenAI: {
+        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > OpenAI',
+        'invalid-key': 'API Key inválida. Verifique em platform.openai.com',
+        'quota-exceeded': 'Créditos insuficientes. Adicione créditos em OpenAI',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      Claude: {
+        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > Anthropic',
+        'invalid-key': 'API Key inválida. Verifique em console.anthropic.com',
+        'quota-exceeded': 'Quota excedida. Verifique seu plano',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      ElevenLabs: {
+        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > ElevenLabs',
+        'invalid-key': 'API Key inválida. Verifique em elevenlabs.io',
+        'quota-exceeded': 'Caracteres esgotados. Aguarde renovação mensal',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      'Edge TTS': {
+        'network': 'Serviço indisponível. Tente novamente em alguns minutos',
+        'default': 'Edge TTS é gratuito e não requer API Key',
+      },
+      JSON2Video: {
+        'no-key': 'API Key não configurada. Vá em Configurações > API Keys > JSON2Video',
+        'invalid-key': 'API Key inválida. Verifique em json2video.com',
+        'quota-exceeded': 'Créditos insuficientes. Recarregue em json2video.com',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+      YouTube: {
+        'not-connected': 'YouTube não conectado. Vá em Configurações > Conexões',
+        'network': 'Erro de rede. Verifique sua conexão',
+      },
+    }
+
+    const apiSolutions = solutions[apiName] || {}
+    let message = apiSolutions[errorType] || apiSolutions['default'] || `Erro: ${details || errorType}`
+
+    return message
+  }
+
   // Real API test functions
-  const testRealAPI = async (apiName: string): Promise<{ success: boolean; message: string }> => {
+  const testRealAPI = async (apiName: string): Promise<{ success: boolean; message: string; action?: string }> => {
+    // First check if API key is configured (for APIs that need it)
+    if (!isApiKeyConfigured(apiName)) {
+      return {
+        success: false,
+        message: getErrorMessageWithSolution(apiName, 'no-key'),
+        action: 'configure-key'
+      }
+    }
+
     const apiEndpoints: Record<string, { url: string; body: object }> = {
       Gemini: {
         url: '/api/gemini',
@@ -204,7 +280,7 @@ export function Monitor() {
 
     const endpoint = apiEndpoints[apiName]
     if (!endpoint) {
-      return { success: false, message: 'API não configurada' }
+      return { success: false, message: `API ${apiName} não suportada` }
     }
 
     try {
@@ -219,19 +295,52 @@ export function Monitor() {
       if (response.ok) {
         // Check for specific success indicators
         if (data.success === true || data.status === 'ok' || data.connected === true) {
-          return { success: true, message: data.message || 'Conectado!' }
+          return { success: true, message: data.message || 'Conectado com sucesso!' }
         }
         // Check for configuration needed
         if (data.needsConfiguration || data.configured === false) {
-          return { success: false, message: data.message || 'API Key não configurada' }
+          return {
+            success: false,
+            message: getErrorMessageWithSolution(apiName, 'no-key'),
+            action: 'configure-key'
+          }
         }
         // Default success if response is OK
-        return { success: true, message: 'Conectado!' }
+        return { success: true, message: 'API respondendo!' }
       } else {
-        return { success: false, message: data.error || data.message || 'Erro de conexão' }
+        // Parse specific error types
+        const errorCode = data.code || data.error?.code || ''
+        const errorMessage = data.error || data.message || ''
+
+        if (errorCode.includes('invalid') || errorMessage.toLowerCase().includes('invalid') ||
+            errorMessage.toLowerCase().includes('unauthorized') || response.status === 401) {
+          return {
+            success: false,
+            message: getErrorMessageWithSolution(apiName, 'invalid-key'),
+            action: 'check-key'
+          }
+        }
+
+        if (errorCode.includes('quota') || errorMessage.toLowerCase().includes('quota') ||
+            errorMessage.toLowerCase().includes('limit') || response.status === 429) {
+          return {
+            success: false,
+            message: getErrorMessageWithSolution(apiName, 'quota-exceeded'),
+            action: 'check-quota'
+          }
+        }
+
+        return {
+          success: false,
+          message: `Erro: ${errorMessage || `HTTP ${response.status}`}`,
+        }
       }
     } catch (error) {
-      return { success: false, message: 'Erro de rede - API indisponível' }
+      return {
+        success: false,
+        message: getErrorMessageWithSolution(apiName, 'network'),
+        action: 'check-network'
+      }
     }
   }
 
@@ -389,6 +498,8 @@ export function Monitor() {
               const StatusIcon = statusIcons[api.status]
               const isAutoWorkflow =
                 api.name === 'ElevenLabs' || api.name === 'JSON2Video'
+              const hasApiKey = isApiKeyConfigured(api.name)
+              const needsKey = apiKeyMapping[api.name] !== undefined
 
               return (
                 <motion.button
@@ -397,20 +508,33 @@ export function Monitor() {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => testConnection(api.name)}
                   disabled={testing === api.name}
-                  className="p-4 rounded-xl bg-background/50 border border-white/10 hover:border-white/20 text-left transition-all"
+                  className={`p-4 rounded-xl bg-background/50 border text-left transition-all ${
+                    !hasApiKey && needsKey
+                      ? 'border-status-warning/30 hover:border-status-warning/50'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-text-secondary" />
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        !hasApiKey && needsKey ? 'bg-status-warning/10' : 'bg-white/5'
+                      }`}>
+                        <Icon className={`w-5 h-5 ${
+                          !hasApiKey && needsKey ? 'text-status-warning' : 'text-text-secondary'
+                        }`} />
                       </div>
                       <div>
                         <p className="font-medium text-text-primary">{api.name}</p>
-                        {isAutoWorkflow && (
+                        {!hasApiKey && needsKey ? (
+                          <span className="text-xs text-status-warning flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            API Key não configurada
+                          </span>
+                        ) : isAutoWorkflow ? (
                           <span className="text-xs text-accent-purple">
                             Workflow Automático
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
