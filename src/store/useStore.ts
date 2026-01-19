@@ -99,7 +99,7 @@ const defaultDiretrizPerfil: DiretrizPerfil = {
 }
 
 const initialConfiguracoes: Configuracoes = {
-  modo: 'mvp',
+  modo: 'smart-economy', // Modo recomendado - busca recursos gratuitos primeiro
   appMode: 'test',
   apiKeys: {
     gemini: '',
