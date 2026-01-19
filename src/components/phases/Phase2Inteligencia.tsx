@@ -8,9 +8,27 @@ import {
   CheckCircle,
   Loader2,
   Sparkles,
+  ChevronDown,
+  DollarSign,
+  Zap,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { Button, Card, CardContent } from '../ui'
+import { analyzeWithGemini } from '../../services/api'
+
+// AI Models configuration
+const AI_MODELS = {
+  analysis: [
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', cost: 0.0001, speed: 'fast' },
+    { id: 'gemini-2.0-pro', name: 'Gemini 2.0 Pro', provider: 'Google', cost: 0.0005, speed: 'medium' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', cost: 0.0002, speed: 'fast' },
+    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', cost: 0.001, speed: 'medium' },
+    { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', cost: 0.00025, speed: 'fast' },
+    { id: 'claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', cost: 0.003, speed: 'medium' },
+    { id: 'groq-llama-3.1-70b', name: 'Llama 3.1 70B', provider: 'Groq', cost: 0.0001, speed: 'very-fast' },
+    { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', cost: 0.0008, speed: 'medium' },
+  ],
+}
 
 interface Phase2InteligenciaProps {
   onNext: () => void
@@ -27,7 +45,12 @@ interface ProcessStep {
 }
 
 export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) {
-  const { gatilho, setInteligencia, addToast } = useStore()
+  const { gatilho, setInteligencia, addToast, configuracoes } = useStore()
+  const isTestMode = configuracoes.appMode === 'test'
+
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS.analysis[0].id)
+  const [showModelDropdown, setShowModelDropdown] = useState(false)
+
   const [steps, setSteps] = useState<ProcessStep[]>([
     {
       id: 'deep-research',
@@ -57,6 +80,8 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
   const [processing, setProcessing] = useState(false)
   const [completed, setCompleted] = useState(false)
 
+  const currentModel = AI_MODELS.analysis.find((m) => m.id === selectedModel)
+
   const updateStep = (stepId: string, updates: Partial<ProcessStep>) => {
     setSteps((prev) =>
       prev.map((s) => (s.id === stepId ? { ...s, ...updates } : s))
@@ -77,7 +102,7 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
     try {
       // Step 1: Deep Research
       updateStep('deep-research', { status: 'processing' })
-      addLog('deep-research', 'Conectando com Gemini...')
+      addLog('deep-research', isTestMode ? '[TEST MODE] Simulando conexão...' : `Conectando com ${currentModel?.name}...`)
       await new Promise((r) => setTimeout(r, 800))
       addLog('deep-research', `Pesquisando sobre: "${gatilho.tema}"`)
       await new Promise((r) => setTimeout(r, 1200))
@@ -86,43 +111,10 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
       addLog('deep-research', 'Verificando fatos históricos...')
       await new Promise((r) => setTimeout(r, 800))
 
-      // Call actual API
-      const researchResponse = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'deep-research',
-          tema: gatilho.tema,
-          tipoConteudo: gatilho.tipoConteudo,
-          gatilhos: gatilho.gatilhosEmocionais,
-        }),
-      })
+      // Use API service (handles test mode automatically)
+      const inteligenciaData = await analyzeWithGemini(gatilho)
 
-      let deepResearchData = {
-        fatos: [
-          'O Salmo 23 foi escrito por Davi, que era pastor antes de se tornar rei',
-          'A oração do Pai Nosso contém 7 petições principais',
-          'Estudos mostram que a oração pode reduzir níveis de cortisol em até 25%',
-        ],
-        curiosidades: [
-          'A Bíblia menciona a palavra "paz" mais de 400 vezes',
-          'O jejum era uma prática comum entre os profetas do Antigo Testamento',
-        ],
-        referencias: [
-          'Salmo 23:1-6',
-          'Filipenses 4:6-7',
-          'Mateus 6:25-34',
-        ],
-      }
-
-      if (researchResponse.ok) {
-        const data = await researchResponse.json()
-        if (data.deepResearch) {
-          deepResearchData = data.deepResearch
-        }
-      }
-
-      addLog('deep-research', `Encontrados ${deepResearchData.fatos.length} fatos relevantes`)
+      addLog('deep-research', `Encontrados ${inteligenciaData.deepResearch.fatos.length} fatos relevantes`)
       updateStep('deep-research', { status: 'completed' })
 
       // Step 2: Channel Analysis
@@ -133,67 +125,39 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
       await new Promise((r) => setTimeout(r, 800))
       addLog('channel-analysis', 'Mapeando gatilhos de engajamento...')
       await new Promise((r) => setTimeout(r, 600))
-
-      const channelAnalysisData = {
-        padroesSuccesso: [
-          'Vídeos com abertura emocional têm 40% mais retenção',
-          'Duração ideal identificada: 8-12 minutos',
-          'Público responde bem a mensagens de esperança e cura',
-        ],
-        temasRetencao: ['Proteção divina', 'Superação de medos', 'Paz interior'],
-        duracaoIdeal: '8-12 minutos',
-        gatilhosEngajamento: ['Esperança', 'Cura', 'Proteção'],
-      }
-
-      addLog('channel-analysis', 'Padrões identificados com sucesso')
+      addLog('channel-analysis', `Identificados ${inteligenciaData.analiseCanal.padroesSuccesso.length} padrões de sucesso`)
       updateStep('channel-analysis', { status: 'completed' })
 
       // Step 3: Competitor Analysis
       updateStep('competitor-analysis', { status: 'processing' })
-      addLog('competitor-analysis', 'Processando metadados do concorrente...')
+      addLog('competitor-analysis', 'Processando dados dos concorrentes...')
       await new Promise((r) => setTimeout(r, 700))
 
-      if (gatilho.concorrenteTranscricao) {
-        addLog('competitor-analysis', 'Analisando transcrição fornecida...')
+      const hasCompetitors = gatilho.concorrentes && gatilho.concorrentes.length > 0
+      if (hasCompetitors) {
+        addLog('competitor-analysis', `Analisando ${gatilho.concorrentes.length} concorrente(s)...`)
         await new Promise((r) => setTimeout(r, 1000))
-        addLog('competitor-analysis', 'Extraindo estrutura narrativa...')
-        await new Promise((r) => setTimeout(r, 800))
       }
 
+      addLog('competitor-analysis', 'Extraindo estrutura narrativa...')
+      await new Promise((r) => setTimeout(r, 800))
       addLog('competitor-analysis', 'Identificando elementos virais...')
       await new Promise((r) => setTimeout(r, 600))
-
-      const competitorAnalysisData = {
-        estruturaNarrativa:
-          'Gancho emocional forte nos primeiros 15s, seguido de desenvolvimento com pausas dramáticas, e fechamento com chamada à ação',
-        ganchosRetencao: [
-          'Pergunta retórica na abertura',
-          'Promessa de transformação',
-          'Histórias pessoais de superação',
-        ],
-        elementosVirais: [
-          'Título com número ou promessa específica',
-          'Thumbnail com expressão emocional',
-          'Palavras-chave no primeiro minuto',
-        ],
-      }
-
-      addLog('competitor-analysis', 'Análise completa!')
+      addLog('competitor-analysis', `Encontrados ${inteligenciaData.analiseConcorrente.elementosVirais.length} elementos virais`)
       updateStep('competitor-analysis', { status: 'completed' })
 
       // Set intelligence data
-      setInteligencia({
-        deepResearch: deepResearchData,
-        analiseCanal: channelAnalysisData,
-        analiseConcorrente: competitorAnalysisData,
-      })
+      setInteligencia(inteligenciaData)
 
       setCompleted(true)
       addToast({
         type: 'success',
-        message: 'Análise concluída! Dados processados com sucesso.',
+        message: isTestMode
+          ? '[TEST] Análise simulada concluída!'
+          : 'Análise concluída! Dados processados com sucesso.',
       })
     } catch (error) {
+      console.error('Analysis error:', error)
       addToast({
         type: 'error',
         message: 'Erro durante o processamento. Tente novamente.',
@@ -300,18 +264,84 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between pt-4">
+      <div className="flex items-center justify-between pt-4 gap-4">
         <Button variant="ghost" onClick={onBack} disabled={processing}>
           Voltar
         </Button>
-        <Button
-          onClick={onNext}
-          disabled={!completed}
-          loading={processing}
-          icon={<Brain className="w-4 h-4" />}
-        >
-          {completed ? 'Continuar para Criação' : 'Processando...'}
-        </Button>
+
+        <div className="flex items-center gap-3">
+          {/* Model Selector for next phase */}
+          {completed && (
+            <div className="flex items-center gap-2">
+              {/* Cost Preview */}
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-white/5 rounded-lg text-xs">
+                <DollarSign className="w-3.5 h-3.5 text-status-success" />
+                <span className="text-text-secondary">Próx. etapa:</span>
+                <span className="text-text-primary font-medium">
+                  {isTestMode ? '$0.00' : `~$${((currentModel?.cost || 0) * 3).toFixed(4)}`}
+                </span>
+              </div>
+
+              {/* Model Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowModelDropdown(!showModelDropdown)}
+                  className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors text-sm"
+                >
+                  <Zap className="w-4 h-4 text-accent-purple" />
+                  <span className="text-text-primary">{currentModel?.name}</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-text-secondary transition-transform ${
+                      showModelDropdown ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {showModelDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute bottom-full right-0 mb-2 w-64 bg-card border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-64 overflow-y-auto"
+                  >
+                    {AI_MODELS.analysis.map((model) => (
+                      <button
+                        key={model.id}
+                        onClick={() => {
+                          setSelectedModel(model.id)
+                          setShowModelDropdown(false)
+                        }}
+                        className={`w-full flex items-center justify-between p-3 hover:bg-white/5 text-left ${
+                          model.id === selectedModel ? 'bg-white/5' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-sm font-medium text-text-primary">
+                            {model.name}
+                          </div>
+                          <div className="text-xs text-text-secondary">
+                            {model.provider} • {model.speed}
+                          </div>
+                        </div>
+                        <div className="text-xs text-status-success font-mono">
+                          ${model.cost.toFixed(4)}
+                        </div>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <Button
+            onClick={onNext}
+            disabled={!completed}
+            loading={processing}
+            icon={<Brain className="w-4 h-4" />}
+          >
+            {completed ? 'Continuar para Criação' : 'Processando...'}
+          </Button>
+        </div>
       </div>
     </motion.div>
   )
