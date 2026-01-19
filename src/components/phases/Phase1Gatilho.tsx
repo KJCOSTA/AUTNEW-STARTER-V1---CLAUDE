@@ -18,6 +18,9 @@ import {
   ChevronDown,
   ChevronUp,
   FileSpreadsheet,
+  ClipboardPaste,
+  CheckCircle,
+  Lightbulb,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -67,15 +70,20 @@ interface Phase1GatilhoProps {
 }
 
 export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
-  const { gatilho, setGatilho, addToast, canal, configuracoes } = useStore()
+  const { gatilho, setGatilho, addToast, canal, setCanal, configuracoes } = useStore()
   const [extractingId, setExtractingId] = useState<string | null>(null)
   const [expandedConcorrente, setExpandedConcorrente] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // State for channel data input methods
+  const [pastedMetrics, setPastedMetrics] = useState('')
+  const [processingPaste, setProcessingPaste] = useState(false)
+  const [processingFile, setProcessingFile] = useState(false)
+
   const isTestMode = configuracoes.appMode === 'test'
 
-  // Handle CSV/XLS file upload for competitor data
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle CSV/XLS file upload for CHANNEL data (not competitor)
+  const handleChannelFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -87,42 +95,81 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
       return
     }
 
+    setProcessingFile(true)
     addToast({ type: 'info', message: `Processando ${file.name}...` })
 
-    // In real implementation, parse the file and extract competitor data
+    // In real implementation, parse the file and extract channel metrics
     // For now, simulate processing and add mock data
     setTimeout(() => {
-      const mockConcorrente: ConcorrenteData = {
-        id: Date.now().toString(),
-        link: '',
-        transcricao: `Dados importados de ${file.name}`,
-        metadados: {
-          videoId: 'imported',
-          titulo: `Dados de ${file.name}`,
-          canal: 'Importado via planilha',
-          inscritos: '0',
-          views: 0,
-          likes: 0,
-          comentarios: 0,
-          dataPublicacao: new Date().toISOString(),
-          diasDecorridos: 0,
-          duracao: '0:00',
-          tags: [],
-          descricao: 'Dados importados de planilha CSV/XLS',
-          thumbnailUrl: '',
+      setCanal({
+        conectado: true,
+        nome: 'Mundo da Prece',
+        inscritos: 125000,
+        metricas30dias: {
+          melhorVideo: 'Oração da Manhã',
+          retencaoMedia: 42,
+          duracaoPerforma: '8-12min',
+          totalViews: 450000,
         },
-      }
-      setGatilho({
-        concorrentes: [...gatilho.concorrentes, mockConcorrente],
       })
-      setExpandedConcorrente(mockConcorrente.id)
-      addToast({ type: 'success', message: 'Dados importados com sucesso!' })
+      setProcessingFile(false)
+      addToast({ type: 'success', message: `Dados importados de ${file.name}!` })
     }, 1500)
 
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+  }
+
+  // Handle pasted metrics from YouTube Studio
+  const handleProcessPastedMetrics = () => {
+    if (!pastedMetrics.trim()) {
+      addToast({ type: 'warning', message: 'Cole os dados do YouTube Studio primeiro' })
+      return
+    }
+
+    setProcessingPaste(true)
+    addToast({ type: 'info', message: 'Interpretando dados colados...' })
+
+    // In real implementation, use AI to parse the pasted text
+    // For now, simulate processing
+    setTimeout(() => {
+      setCanal({
+        conectado: true,
+        nome: 'Mundo da Prece',
+        inscritos: 125000,
+        metricas30dias: {
+          melhorVideo: 'Oração da Manhã',
+          retencaoMedia: 42,
+          duracaoPerforma: '8-12min',
+          totalViews: 450000,
+        },
+      })
+      setProcessingPaste(false)
+      addToast({ type: 'success', message: 'Dados interpretados com sucesso!' })
+    }, 2000)
+  }
+
+  // Handle YouTube API connection
+  const handleConnectYouTube = () => {
+    addToast({ type: 'info', message: 'Conectando ao YouTube...' })
+
+    // In real implementation, initiate OAuth flow
+    setTimeout(() => {
+      setCanal({
+        conectado: true,
+        nome: 'Mundo da Prece',
+        inscritos: 125000,
+        metricas30dias: {
+          melhorVideo: 'Oração da Manhã',
+          retencaoMedia: 42,
+          duracaoPerforma: '8-12min',
+          totalViews: 450000,
+        },
+      })
+      addToast({ type: 'success', message: 'YouTube conectado com sucesso!' })
+    }, 1500)
   }
 
   const handleTriggerToggle = (trigger: EmotionalTrigger) => {
@@ -300,31 +347,14 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
                 </CardDescription>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                icon={<FileSpreadsheet className="w-4 h-4" />}
-              >
-                Importar Planilha
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={addConcorrente}
-                icon={<Plus className="w-4 h-4" />}
-              >
-                Adicionar
-              </Button>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xls,.xlsx"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={addConcorrente}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              Adicionar
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -334,24 +364,14 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
               <p className="text-text-secondary mb-3">
                 Nenhum concorrente adicionado ainda
               </p>
-              <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  icon={<FileSpreadsheet className="w-4 h-4" />}
-                >
-                  Importar Planilha
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={addConcorrente}
-                  icon={<Plus className="w-4 h-4" />}
-                >
-                  Via YouTube
-                </Button>
-              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={addConcorrente}
+                icon={<Plus className="w-4 h-4" />}
+              >
+                Adicionar Vídeo de Referência
+              </Button>
             </div>
           ) : (
             <AnimatePresence mode="popLayout">
@@ -569,7 +589,7 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
         </CardContent>
       </Card>
 
-      {/* Section 3: Channel Data */}
+      {/* Section 3: Channel Data - 3 Options */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -624,18 +644,123 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
                   </div>
                 </div>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCanal({ conectado: false, nome: '', inscritos: 0, metricas30dias: null })}
+              >
+                Desconectar
+              </Button>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
-                <Youtube className="w-8 h-8 text-text-secondary" />
+            <div className="space-y-6">
+              {/* 3 Options as cards/tabs */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Option A: Connect YouTube API */}
+                <button
+                  onClick={handleConnectYouTube}
+                  className="flex flex-col items-center gap-2 p-4 border border-white/10 rounded-xl hover:bg-white/5 hover:border-accent-blue/30 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
+                    <Youtube className="w-6 h-6 text-red-500" />
+                  </div>
+                  <span className="text-sm font-medium text-text-primary">Conectar YouTube</span>
+                  <span className="text-xs text-text-secondary text-center">Dados em tempo real</span>
+                  <span className="px-2 py-0.5 text-[10px] bg-status-success/20 text-status-success rounded-full">
+                    Recomendado
+                  </span>
+                </button>
+
+                {/* Option B: Paste Metrics */}
+                <button
+                  onClick={() => {
+                    const textarea = document.getElementById('paste-metrics-area')
+                    textarea?.focus()
+                  }}
+                  className="flex flex-col items-center gap-2 p-4 border border-white/10 rounded-xl hover:bg-white/5 hover:border-accent-purple/30 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-accent-purple/10 flex items-center justify-center group-hover:bg-accent-purple/20 transition-colors">
+                    <ClipboardPaste className="w-6 h-6 text-accent-purple" />
+                  </div>
+                  <span className="text-sm font-medium text-text-primary">Colar Métricas</span>
+                  <span className="text-xs text-text-secondary text-center">Do YouTube Studio</span>
+                </button>
+
+                {/* Option C: Import File */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-2 p-4 border border-white/10 rounded-xl hover:bg-white/5 hover:border-accent-blue/30 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-accent-blue/10 flex items-center justify-center group-hover:bg-accent-blue/20 transition-colors">
+                    <FileSpreadsheet className="w-6 h-6 text-accent-blue" />
+                  </div>
+                  <span className="text-sm font-medium text-text-primary">Importar Arquivo</span>
+                  <span className="text-xs text-text-secondary text-center">CSV ou Excel</span>
+                </button>
               </div>
-              <p className="text-text-secondary mb-4">
-                Conecte seu canal do YouTube para análises personalizadas
-              </p>
-              <Button variant="secondary" icon={<Youtube className="w-4 h-4" />}>
-                Conectar YouTube
-              </Button>
+
+              {/* Hidden file input for Option C */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xls,.xlsx"
+                onChange={handleChannelFileUpload}
+                className="hidden"
+              />
+
+              {/* Paste Area for Option B */}
+              <div className="space-y-3">
+                <Textarea
+                  id="paste-metrics-area"
+                  label="Cole aqui os dados do YouTube Studio"
+                  placeholder={`Vá em YouTube Studio > Analytics, selecione tudo (Ctrl+A) e cole aqui (Ctrl+V)
+
+Exemplo de dados aceitos:
+- Resumo de métricas
+- Tabela de vídeos recentes
+- Dados de retenção
+- Estatísticas do canal
+
+A IA vai interpretar automaticamente!`}
+                  value={pastedMetrics}
+                  onChange={(e) => setPastedMetrics(e.target.value)}
+                  rows={6}
+                />
+                {pastedMetrics && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-text-secondary">
+                      {pastedMetrics.length} caracteres colados
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={handleProcessPastedMetrics}
+                      loading={processingPaste}
+                      icon={<CheckCircle className="w-4 h-4" />}
+                    >
+                      Processar Dados
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Tip */}
+              <div className="flex items-start gap-3 p-3 bg-accent-blue/5 border border-accent-blue/10 rounded-xl">
+                <Lightbulb className="w-5 h-5 text-accent-blue flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-text-primary font-medium">Dica</p>
+                  <p className="text-xs text-text-secondary">
+                    Use quantas opções quiser para uma análise mais completa.
+                    A opção de colar é a mais prática se você não quer configurar OAuth.
+                  </p>
+                </div>
+              </div>
+
+              {processingFile && (
+                <div className="flex items-center justify-center gap-2 p-4 bg-white/5 rounded-xl">
+                  <div className="w-4 h-4 border-2 border-accent-blue border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm text-text-secondary">Processando arquivo...</span>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

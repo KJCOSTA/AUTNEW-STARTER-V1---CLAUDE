@@ -317,6 +317,48 @@ export function getMockEntrega(
 ): EntregaData {
   return {
     videoUrl: 'https://example.com/mock-video.mp4',
+    // NEW MODEL: Include title and thumb variants for A/B testing
+    titleVariants: [
+      {
+        id: 1,
+        titulo: titulo,
+        goldenHook: 'Se você está passando por um momento difícil, esta oração vai mudar sua vida...',
+        descricao: 'Abordagem direta e emocional',
+      },
+      {
+        id: 2,
+        titulo: `PARE TUDO e Faça Esta Oração Agora - ${tema}`,
+        goldenHook: 'Os próximos 5 minutos podem transformar completamente seu dia...',
+        descricao: 'Abordagem de urgência',
+      },
+      {
+        id: 3,
+        titulo: `A Oração Que Deus Sempre Ouve - ${tema}`,
+        goldenHook: 'Existe uma forma especial de orar que toca o coração de Deus...',
+        descricao: 'Abordagem de curiosidade',
+      },
+    ],
+    thumbVariants: [
+      {
+        id: 1,
+        conceito: 'Pessoa idosa de mãos postas com luz dourada',
+        prompt: 'Elderly person with hands clasped in prayer, golden divine light, peaceful expression, 4K quality',
+        imageUrl: thumbnailUrl || 'https://picsum.photos/seed/thumb1/1280/720',
+      },
+      {
+        id: 2,
+        conceito: 'Mãos erguidas para o céu com raios de luz',
+        prompt: 'Hands raised to sky with rays of light, spiritual atmosphere, heavenly clouds, 4K quality',
+        imageUrl: 'https://picsum.photos/seed/thumb2/1280/720',
+      },
+      {
+        id: 3,
+        conceito: 'Bíblia aberta com luz divina',
+        prompt: 'Open Bible with divine light emanating, spiritual glow, peaceful setting, 4K quality',
+        imageUrl: 'https://picsum.photos/seed/thumb3/1280/720',
+      },
+    ],
+    // LEGACY fields
     thumbnailUrl: thumbnailUrl || 'https://picsum.photos/seed/final/1280/720',
     titulo,
     descricaoSEO: `${titulo}

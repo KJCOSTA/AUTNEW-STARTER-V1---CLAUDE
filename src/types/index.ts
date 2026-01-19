@@ -125,6 +125,7 @@ export interface InteligenciaData {
 }
 
 // Phase 3: Creation Options
+// LEGACY - kept for backwards compatibility
 export interface OpcaoCriacao {
   id: number
   titulo: string
@@ -134,11 +135,37 @@ export interface OpcaoCriacao {
   thumbnailPrompt?: string
 }
 
+// NEW MODEL: 1 video with variations for A/B testing
+// Title variant for the same video
+export interface TitleVariant {
+  id: number
+  titulo: string
+  goldenHook: string
+  descricao: string // Description/concept for this title approach
+}
+
+// Thumbnail variant for the same video
+export interface ThumbVariant {
+  id: number
+  conceito: string // Visual concept description
+  prompt: string // Image generation prompt
+  imageUrl?: string // Generated/uploaded image URL
+}
+
 export interface CriacaoData {
+  // LEGACY fields - kept for backwards compatibility
   opcoes: OpcaoCriacao[]
   opcaoSelecionada: number | null
-  roteiro: string
+
+  // NEW MODEL: Single video with variations
+  roteiro: string // Single script for the video
   roteiroAprovado: boolean
+
+  // 3 title variations for A/B testing
+  titleVariants: TitleVariant[]
+
+  // 3 thumbnail variations for A/B testing
+  thumbVariants: ThumbVariant[]
 }
 
 // Phase 4: Studio - Scenes
@@ -163,12 +190,19 @@ export interface EstudioData {
 // Phase 5: Delivery Package
 export interface EntregaData {
   videoUrl?: string
+
+  // NEW MODEL: Preserve all 3 variations for A/B testing
+  titleVariants: TitleVariant[] // 3 title options
+  thumbVariants: ThumbVariant[] // 3 thumbnail options
+
+  // LEGACY - kept for backwards compatibility (first variant or selected)
   thumbnailUrl: string
   titulo: string
+  promptThumbnail: string
+
   descricaoSEO: string
   tags: string[]
   roteiro: string
-  promptThumbnail: string
   publicadoYouTube: boolean
   agendamento?: string
 }
