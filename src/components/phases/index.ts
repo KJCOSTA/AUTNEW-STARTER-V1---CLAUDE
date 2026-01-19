@@ -1,0 +1,5 @@
+export { Phase1Gatilho } from './Phase1Gatilho'
+export { Phase2Inteligencia } from './Phase2Inteligencia'
+export { Phase3Criacao } from './Phase3Criacao'
+export { Phase4Estudio } from './Phase4Estudio'
+export { Phase5Entrega } from './Phase5Entrega'
