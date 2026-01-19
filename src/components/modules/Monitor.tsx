@@ -331,7 +331,7 @@ export function Monitor() {
                 <span className="text-xs">Gasto Total</span>
               </div>
               <p className="text-xl font-bold text-text-primary">
-                {isTestMode ? '$0.00' : `$${costBreakdown.total.toFixed(2)}`}
+                {isTestMode ? `$${costBreakdown.total.toFixed(2)}` : '$0.00'}
               </p>
             </div>
             <div className="p-3 rounded-xl bg-background/50">
@@ -340,7 +340,7 @@ export function Monitor() {
                 <span className="text-xs">Texto (IA)</span>
               </div>
               <p className="text-xl font-bold text-text-primary">
-                {isTestMode ? '$0.00' : `$${costBreakdown.textGeneration.toFixed(2)}`}
+                {isTestMode ? `$${costBreakdown.textGeneration.toFixed(2)}` : '$0.00'}
               </p>
             </div>
             <div className="p-3 rounded-xl bg-background/50">
@@ -349,7 +349,7 @@ export function Monitor() {
                 <span className="text-xs">Imagens</span>
               </div>
               <p className="text-xl font-bold text-text-primary">
-                {isTestMode ? '$0.00' : `$${costBreakdown.imageGeneration.toFixed(2)}`}
+                {isTestMode ? `$${costBreakdown.imageGeneration.toFixed(2)}` : '$0.00'}
               </p>
             </div>
             <div className="p-3 rounded-xl bg-background/50">
@@ -358,7 +358,7 @@ export function Monitor() {
                 <span className="text-xs">Áudio</span>
               </div>
               <p className="text-xl font-bold text-text-primary">
-                {isTestMode ? '$0.00' : `$${costBreakdown.audioGeneration.toFixed(2)}`}
+                {isTestMode ? `$${costBreakdown.audioGeneration.toFixed(2)}` : '$0.00'}
               </p>
             </div>
             <div className="p-3 rounded-xl bg-gradient-accent/20">
@@ -367,7 +367,7 @@ export function Monitor() {
                 <span className="text-xs">Projeção 30d</span>
               </div>
               <p className="text-xl font-bold text-text-primary">
-                {isTestMode ? '$0.00' : `$${costBreakdown.projected30Days.toFixed(2)}`}
+                {isTestMode ? `$${costBreakdown.projected30Days.toFixed(2)}` : '$0.00'}
               </p>
             </div>
           </div>
@@ -467,18 +467,18 @@ export function Monitor() {
                 </span>
               </div>
               <span className="text-sm text-text-secondary">
-                {isTestMode ? '0' : quotas.gemini.used.toLocaleString()} / {quotas.gemini.limit.toLocaleString()} tokens
+                {isTestMode ? quotas.gemini.used.toLocaleString() : '0'} / {quotas.gemini.limit.toLocaleString()} tokens
               </span>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: isTestMode ? '0%' : `${quotas.gemini.percent}%` }}
+                animate={{ width: isTestMode ? `${quotas.gemini.percent}%` : '0%' }}
                 className="h-full bg-blue-400"
               />
             </div>
             <p className="text-xs text-text-secondary mt-2">
-              Gemini 2.5 Flash • $0.0001/1K tokens • {isTestMode ? '0' : quotas.gemini.percent}% usado
+              Gemini 2.5 Flash • $0.0001/1K tokens • {isTestMode ? quotas.gemini.percent : '0'}% usado
             </p>
           </div>
 
@@ -493,18 +493,18 @@ export function Monitor() {
                 </span>
               </div>
               <span className="text-sm text-text-secondary">
-                {isTestMode ? '0' : quotas.groq.used.toLocaleString()} / {quotas.groq.limit.toLocaleString()} tokens/dia
+                {isTestMode ? quotas.groq.used.toLocaleString() : '0'} / {quotas.groq.limit.toLocaleString()} tokens/dia
               </span>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: isTestMode ? '0%' : `${quotas.groq.percent}%` }}
+                animate={{ width: isTestMode ? `${quotas.groq.percent}%` : '0%' }}
                 className="h-full bg-purple-400"
               />
             </div>
             <p className="text-xs text-text-secondary mt-2">
-              Llama 3.1 70B • Super rápido • {isTestMode ? '0' : quotas.groq.percent}% usado
+              Llama 3.1 70B • Super rápido • {isTestMode ? quotas.groq.percent : '0'}% usado
             </p>
           </div>
 
@@ -519,13 +519,13 @@ export function Monitor() {
                 </span>
               </div>
               <span className="text-sm text-text-secondary">
-                {isTestMode ? '0' : quotas.openai.used.toLocaleString()} / {quotas.openai.limit.toLocaleString()} tokens
+                {isTestMode ? quotas.openai.used.toLocaleString() : '0'} / {quotas.openai.limit.toLocaleString()} tokens
               </span>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: isTestMode ? '0%' : `${quotas.openai.percent}%` }}
+                animate={{ width: isTestMode ? `${quotas.openai.percent}%` : '0%' }}
                 className="h-full bg-green-400"
               />
             </div>
@@ -540,7 +540,7 @@ export function Monitor() {
               <div className="flex items-center gap-2">
                 <Mic className="w-5 h-5 text-pink-400" />
                 <span className="font-medium text-text-primary">ElevenLabs</span>
-                {quotas.elevenlabs.percent > 50 && (
+                {isTestMode && quotas.elevenlabs.percent > 50 && (
                   <span className="px-2 py-0.5 bg-status-warning/20 text-status-warning text-xs rounded-full flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     Baixo
@@ -548,18 +548,18 @@ export function Monitor() {
                 )}
               </div>
               <span className="text-sm text-text-secondary">
-                {isTestMode ? '0' : quotas.elevenlabs.used.toLocaleString()} / {quotas.elevenlabs.limit.toLocaleString()} chars
+                {isTestMode ? quotas.elevenlabs.used.toLocaleString() : '0'} / {quotas.elevenlabs.limit.toLocaleString()} chars
               </span>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: isTestMode ? '0%' : `${quotas.elevenlabs.percent}%` }}
-                className={`h-full ${quotas.elevenlabs.percent > 80 ? 'bg-status-error' : quotas.elevenlabs.percent > 50 ? 'bg-status-warning' : 'bg-pink-400'}`}
+                animate={{ width: isTestMode ? `${quotas.elevenlabs.percent}%` : '0%' }}
+                className={`h-full ${isTestMode && quotas.elevenlabs.percent > 80 ? 'bg-status-error' : isTestMode && quotas.elevenlabs.percent > 50 ? 'bg-status-warning' : 'bg-pink-400'}`}
               />
             </div>
             <p className="text-xs text-text-secondary mt-2">
-              Tier Grátis: 10K chars/mês • {isTestMode ? '0' : quotas.elevenlabs.percent}% usado
+              Tier Grátis: 10K chars/mês • {isTestMode ? quotas.elevenlabs.percent : '0'}% usado
             </p>
           </div>
         </CardContent>
