@@ -82,6 +82,7 @@ const initialDiretrizes: Diretrizes = {
 
 const initialConfiguracoes: Configuracoes = {
   modo: 'mvp',
+  appMode: 'test',
   apiKeys: {
     gemini: '',
     openai: '',

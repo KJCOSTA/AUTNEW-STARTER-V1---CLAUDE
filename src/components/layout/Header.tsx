@@ -1,15 +1,38 @@
 import { motion } from 'framer-motion'
-import { Bell, User, Zap, Moon } from 'lucide-react'
+import { Bell, User, FlaskConical } from 'lucide-react'
 import { useStore } from '../../store/useStore'
+import { Toggle } from '../ui/Toggle'
 
 export function Header() {
-  const { configuracoes } = useStore()
+  const { configuracoes, setConfiguracoes } = useStore()
   const isMVP = configuracoes.modo === 'mvp'
+  const isTestMode = configuracoes.appMode === 'test'
+
+  const toggleTestMode = () => {
+    setConfiguracoes({
+      appMode: isTestMode ? 'production' : 'test',
+    })
+  }
 
   return (
     <header className="h-16 border-b border-white/5 bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
-      {/* Left side - Page title could go here */}
-      <div className="flex items-center gap-4">
+      {/* Left side - Mode indicators */}
+      <div className="flex items-center gap-6">
+        {/* Test Mode Badge */}
+        {isTestMode && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30"
+          >
+            <FlaskConical className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+              Test Mode
+            </span>
+          </motion.div>
+        )}
+
+        {/* Operation Mode indicator */}
         <div className="flex items-center gap-2">
           <div
             className={`w-2 h-2 rounded-full ${
@@ -24,23 +47,19 @@ export function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        {/* Quick actions */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="p-2 rounded-lg bg-white/5 text-text-secondary hover:text-text-primary hover:bg-white/10 transition-colors"
-        >
-          <Zap className="w-5 h-5" />
-        </motion.button>
+        {/* Test Mode Toggle */}
+        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-white/5">
+          <FlaskConical
+            className={`w-4 h-4 ${isTestMode ? 'text-amber-400' : 'text-text-secondary'}`}
+          />
+          <Toggle
+            checked={isTestMode}
+            onChange={toggleTestMode}
+            label={isTestMode ? 'Teste' : 'Produção'}
+          />
+        </div>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="p-2 rounded-lg bg-white/5 text-text-secondary hover:text-text-primary hover:bg-white/10 transition-colors"
-        >
-          <Moon className="w-5 h-5" />
-        </motion.button>
-
+        {/* Notifications */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

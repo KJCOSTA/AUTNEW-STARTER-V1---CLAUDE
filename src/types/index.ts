@@ -198,8 +198,12 @@ export interface APIStatusInfo {
 // Settings
 export type OperationMode = 'mvp' | 'producao'
 
+// Test Mode
+export type AppMode = 'test' | 'production'
+
 export interface Configuracoes {
   modo: OperationMode
+  appMode: AppMode
   apiKeys: {
     gemini: string
     openai: string
