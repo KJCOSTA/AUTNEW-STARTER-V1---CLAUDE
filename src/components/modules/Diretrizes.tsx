@@ -14,6 +14,14 @@ import {
   Copy,
   Check,
   ChevronDown,
+  Zap,
+  Settings2,
+  Film,
+  Volume2,
+  Image,
+  Type,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -26,7 +34,17 @@ import {
   CardDescription,
   CardContent,
 } from '../ui'
-import type { DiretrizPerfil, DiretrizesContent } from '../../types'
+import type { DiretrizPerfil, DiretrizesContent, DiretrizCustomizada, DiretrizAcaoTipo } from '../../types'
+
+// Action types configuration
+const ACAO_TIPOS: { id: DiretrizAcaoTipo; label: string; icon: typeof FileText; color: string }[] = [
+  { id: 'roteiro', label: 'Roteiro', icon: FileText, color: 'text-accent-blue' },
+  { id: 'thumbnail', label: 'Thumbnail', icon: Image, color: 'text-accent-purple' },
+  { id: 'audio', label: 'Áudio', icon: Volume2, color: 'text-status-success' },
+  { id: 'video', label: 'Vídeo', icon: Film, color: 'text-status-warning' },
+  { id: 'narracao', label: 'Narração', icon: MessageSquare, color: 'text-pink-400' },
+  { id: 'descricao', label: 'Descrição', icon: Type, color: 'text-cyan-400' },
+]
 
 export function Diretrizes() {
   const {
@@ -47,7 +65,84 @@ export function Diretrizes() {
   const [newPerfilDesc, setNewPerfilDesc] = useState('')
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
 
+  // Custom diretriz state
+  const [showDiretrizModal, setShowDiretrizModal] = useState(false)
+  const [editingDiretriz, setEditingDiretriz] = useState<DiretrizCustomizada | null>(null)
+  const [newDiretriz, setNewDiretriz] = useState({
+    titulo: '',
+    descricao: '',
+    conteudo: '',
+    acoes: [] as DiretrizAcaoTipo[],
+  })
+
   const activePerfil = diretrizPerfis.find((p) => p.id === diretrizAtiva)
+
+  // Custom diretriz handlers
+  const handleAddDiretriz = () => {
+    if (!newDiretriz.titulo.trim() || !newDiretriz.conteudo.trim()) {
+      addToast({ type: 'warning', message: 'Título e conteúdo são obrigatórios' })
+      return
+    }
+
+    if (newDiretriz.acoes.length === 0) {
+      addToast({ type: 'warning', message: 'Selecione pelo menos uma ação' })
+      return
+    }
+
+    const nova: DiretrizCustomizada = {
+      id: Date.now().toString(),
+      titulo: newDiretriz.titulo.trim(),
+      descricao: newDiretriz.descricao.trim(),
+      conteudo: newDiretriz.conteudo.trim(),
+      acoes: newDiretriz.acoes,
+      ativa: true,
+      criadaEm: new Date().toISOString(),
+    }
+
+    const updatedDiretrizes = [...(diretrizes.diretrizesCustomizadas || []), nova]
+    setDiretrizes({ diretrizesCustomizadas: updatedDiretrizes })
+    setNewDiretriz({ titulo: '', descricao: '', conteudo: '', acoes: [] })
+    setShowDiretrizModal(false)
+    addToast({ type: 'success', message: 'Diretriz adicionada!' })
+  }
+
+  const handleUpdateDiretriz = () => {
+    if (!editingDiretriz) return
+
+    const updatedDiretrizes = (diretrizes.diretrizesCustomizadas || []).map((d) =>
+      d.id === editingDiretriz.id ? editingDiretriz : d
+    )
+    setDiretrizes({ diretrizesCustomizadas: updatedDiretrizes })
+    setEditingDiretriz(null)
+    addToast({ type: 'success', message: 'Diretriz atualizada!' })
+  }
+
+  const handleDeleteDiretriz = (id: string) => {
+    const updatedDiretrizes = (diretrizes.diretrizesCustomizadas || []).filter((d) => d.id !== id)
+    setDiretrizes({ diretrizesCustomizadas: updatedDiretrizes })
+    addToast({ type: 'info', message: 'Diretriz removida' })
+  }
+
+  const handleToggleDiretriz = (id: string) => {
+    const updatedDiretrizes = (diretrizes.diretrizesCustomizadas || []).map((d) =>
+      d.id === id ? { ...d, ativa: !d.ativa } : d
+    )
+    setDiretrizes({ diretrizesCustomizadas: updatedDiretrizes })
+  }
+
+  const toggleAcao = (acao: DiretrizAcaoTipo, isEditing = false) => {
+    if (isEditing && editingDiretriz) {
+      const acoes = editingDiretriz.acoes.includes(acao)
+        ? editingDiretriz.acoes.filter((a) => a !== acao)
+        : [...editingDiretriz.acoes, acao]
+      setEditingDiretriz({ ...editingDiretriz, acoes })
+    } else {
+      const acoes = newDiretriz.acoes.includes(acao)
+        ? newDiretriz.acoes.filter((a) => a !== acao)
+        : [...newDiretriz.acoes, acao]
+      setNewDiretriz({ ...newDiretriz, acoes })
+    }
+  }
 
   const addToBlacklist = () => {
     if (!newWord.trim()) return
@@ -556,6 +651,234 @@ export function Diretrizes() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Diretrizes per Action */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Zap className="w-5 h-5 text-status-warning" />
+              <div>
+                <CardTitle>Diretrizes por Ação</CardTitle>
+                <CardDescription>
+                  Regras específicas para cada tipo de ação (roteiro, thumbnail, etc.)
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setShowDiretrizModal(true)}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              Nova Diretriz
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {(!diretrizes.diretrizesCustomizadas || diretrizes.diretrizesCustomizadas.length === 0) ? (
+            <div className="text-center py-8">
+              <Settings2 className="w-12 h-12 text-text-secondary/30 mx-auto mb-3" />
+              <p className="text-text-secondary text-sm">
+                Nenhuma diretriz personalizada ainda
+              </p>
+              <p className="text-text-secondary/70 text-xs mt-1">
+                Clique em "Nova Diretriz" para criar regras específicas por ação
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {diretrizes.diretrizesCustomizadas.map((diretriz) => (
+                <motion.div
+                  key={diretriz.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-4 rounded-xl border transition-all ${
+                    diretriz.ativa
+                      ? 'bg-white/5 border-white/10'
+                      : 'bg-white/2 border-white/5 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium text-text-primary truncate">
+                          {diretriz.titulo}
+                        </h4>
+                        <button
+                          onClick={() => handleToggleDiretriz(diretriz.id)}
+                          className="flex-shrink-0"
+                        >
+                          {diretriz.ativa ? (
+                            <ToggleRight className="w-6 h-6 text-status-success" />
+                          ) : (
+                            <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                          )}
+                        </button>
+                      </div>
+                      {diretriz.descricao && (
+                        <p className="text-xs text-text-secondary mb-2">
+                          {diretriz.descricao}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {diretriz.acoes.map((acao) => {
+                          const acaoInfo = ACAO_TIPOS.find((a) => a.id === acao)
+                          if (!acaoInfo) return null
+                          const Icon = acaoInfo.icon
+                          return (
+                            <span
+                              key={acao}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 bg-white/5 rounded-md text-xs ${acaoInfo.color}`}
+                            >
+                              <Icon className="w-3 h-3" />
+                              {acaoInfo.label}
+                            </span>
+                          )
+                        })}
+                      </div>
+                      <p className="text-sm text-text-secondary/80 line-clamp-2">
+                        {diretriz.conteudo}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setEditingDiretriz(diretriz)}
+                        className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
+                      >
+                        <Settings2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDiretriz(diretriz.id)}
+                        className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Custom Diretriz Modal */}
+      <AnimatePresence>
+        {(showDiretrizModal || editingDiretriz) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setShowDiretrizModal(false)
+              setEditingDiretriz(null)
+              setNewDiretriz({ titulo: '', descricao: '', conteudo: '', acoes: [] })
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-bold text-text-primary mb-4">
+                {editingDiretriz ? 'Editar Diretriz' : 'Nova Diretriz'}
+              </h2>
+              <div className="space-y-4">
+                <Input
+                  label="Título"
+                  placeholder="Ex: Usar linguagem empática"
+                  value={editingDiretriz ? editingDiretriz.titulo : newDiretriz.titulo}
+                  onChange={(e) =>
+                    editingDiretriz
+                      ? setEditingDiretriz({ ...editingDiretriz, titulo: e.target.value })
+                      : setNewDiretriz({ ...newDiretriz, titulo: e.target.value })
+                  }
+                />
+                <Input
+                  label="Descrição (opcional)"
+                  placeholder="Ex: Para conectar melhor com o público 60+"
+                  value={editingDiretriz ? editingDiretriz.descricao : newDiretriz.descricao}
+                  onChange={(e) =>
+                    editingDiretriz
+                      ? setEditingDiretriz({ ...editingDiretriz, descricao: e.target.value })
+                      : setNewDiretriz({ ...newDiretriz, descricao: e.target.value })
+                  }
+                />
+                <Textarea
+                  label="Conteúdo da Diretriz"
+                  placeholder="Ex: Sempre use um tom gentil e acolhedor. Evite termos técnicos. Fale como se estivesse conversando com um amigo querido..."
+                  value={editingDiretriz ? editingDiretriz.conteudo : newDiretriz.conteudo}
+                  onChange={(e) =>
+                    editingDiretriz
+                      ? setEditingDiretriz({ ...editingDiretriz, conteudo: e.target.value })
+                      : setNewDiretriz({ ...newDiretriz, conteudo: e.target.value })
+                  }
+                  rows={4}
+                />
+
+                {/* Action Type Selector */}
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Aplicar em quais ações?
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ACAO_TIPOS.map((acao) => {
+                      const isSelected = editingDiretriz
+                        ? editingDiretriz.acoes.includes(acao.id)
+                        : newDiretriz.acoes.includes(acao.id)
+                      const Icon = acao.icon
+                      return (
+                        <button
+                          key={acao.id}
+                          type="button"
+                          onClick={() => toggleAcao(acao.id, !!editingDiretriz)}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all ${
+                            isSelected
+                              ? 'bg-white/10 border-white/20'
+                              : 'bg-white/5 border-white/5 hover:border-white/10'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 ${isSelected ? acao.color : 'text-text-secondary'}`} />
+                          <span className={`text-sm ${isSelected ? 'text-text-primary' : 'text-text-secondary'}`}>
+                            {acao.label}
+                          </span>
+                          {isSelected && (
+                            <Check className="w-3 h-3 text-status-success ml-auto" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-text-secondary mt-2">
+                    Selecione as ações onde esta diretriz deve ser aplicada
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setShowDiretrizModal(false)
+                    setEditingDiretriz(null)
+                    setNewDiretriz({ titulo: '', descricao: '', conteudo: '', acoes: [] })
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={editingDiretriz ? handleUpdateDiretriz : handleAddDiretriz}
+                  icon={editingDiretriz ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                >
+                  {editingDiretriz ? 'Salvar' : 'Criar Diretriz'}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
