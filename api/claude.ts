@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 100,
           messages: [{ role: 'user', content: 'Diga "OK" em uma palavra.' }],
         }),
@@ -59,7 +59,7 @@ Responda APENAS o JSON, sem texto adicional.`
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 2048,
           messages: [{ role: 'user', content: prompt }],
         }),
@@ -122,7 +122,7 @@ Responda APENAS o JSON, sem texto adicional.`
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 2048,
           messages: [{ role: 'user', content: prompt }],
         }),
@@ -181,7 +181,7 @@ Retorne APENAS o roteiro formatado com timestamps.`
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 4096,
           messages: [{ role: 'user', content: prompt }],
         }),
@@ -203,7 +203,7 @@ Retorne APENAS o roteiro formatado com timestamps.`
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: data.maxTokens || 4096,
           messages: [{ role: 'user', content: data.prompt }],
         }),
