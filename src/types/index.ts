@@ -272,6 +272,7 @@ export interface APIKeyConfig {
   tipo: 'api-key' | 'oauth'
   valida?: boolean
   ultimoTeste?: string
+  ativo?: boolean  // Whether this key is active/enabled
 }
 
 export interface Configuracoes {
@@ -293,6 +294,8 @@ export interface Configuracoes {
   }
   // Custom API keys that user can add
   apiKeysCustom: APIKeyConfig[]
+  // Track active/inactive state for built-in API keys
+  apiKeysAtivo: Record<string, boolean>
   youtube: {
     conectado: boolean
     canalNome: string

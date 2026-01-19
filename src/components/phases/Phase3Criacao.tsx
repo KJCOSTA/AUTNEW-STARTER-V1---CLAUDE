@@ -8,10 +8,8 @@ import {
   RefreshCw,
   Loader2,
   Wand2,
-  ChevronDown,
-  ChevronUp,
-  Zap,
   Settings2,
+  FlaskConical,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -22,43 +20,10 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
+  ActionModelSelector,
 } from '../ui'
 import type { OpcaoCriacao } from '../../types'
-
-// AI Models configuration
-const AI_MODELS = [
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', cost: 0.0001, speed: 'Muito rápido' },
-  { id: 'gemini-2.0-pro', name: 'Gemini 2.0 Pro', provider: 'Google', cost: 0.0005, speed: 'Médio' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', cost: 0.0002, speed: 'Rápido' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', cost: 0.001, speed: 'Médio' },
-  { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', cost: 0.00025, speed: 'Muito rápido' },
-  { id: 'claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', cost: 0.003, speed: 'Médio' },
-  { id: 'groq-llama-3.1-70b', name: 'Llama 3.1 70B', provider: 'Groq', cost: 0.0001, speed: 'Ultra rápido' },
-  { id: 'dall-e-3', name: 'DALL-E 3', provider: 'OpenAI', cost: 0.04, speed: 'Médio' },
-  { id: 'elevenlabs-v2', name: 'ElevenLabs V2', provider: 'ElevenLabs', cost: 0.0003, speed: 'Rápido' },
-]
-
-// Next phase actions definition (Estúdio)
-const NEXT_PHASE_ACTIONS = [
-  {
-    id: 'parse-scenes',
-    label: 'Divisão de Cenas',
-    description: 'Converte roteiro em cenas individuais',
-    defaultModel: 'gemini-2.5-flash'
-  },
-  {
-    id: 'generate-visuals',
-    label: 'Geração de Visuais',
-    description: 'Cria imagens para cada cena',
-    defaultModel: 'dall-e-3'
-  },
-  {
-    id: 'generate-narration',
-    label: 'Narração de Áudio',
-    description: 'Gera narração com voz sintetizada',
-    defaultModel: 'elevenlabs-v2'
-  },
-]
+import { CRIACAO_TO_ESTUDIO_ACTIONS, estimateCost } from '../../config/aiRegistry'
 
 interface Phase3CriacaoProps {
   onNext: () => void
@@ -208,15 +173,14 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
   const [generating, setGenerating] = useState(false)
   const [generatingThumb, setGeneratingThumb] = useState<number | null>(null)
 
-  // Model selection per action for next phase
-  const [actionModels, setActionModels] = useState<Record<string, string>>(
-    NEXT_PHASE_ACTIONS.reduce((acc, action) => ({
+  // Model selection per action for next phase - using AI Registry
+  const [modelSelections, setModelSelections] = useState<Record<string, { provider: string; model: string }>>(
+    CRIACAO_TO_ESTUDIO_ACTIONS.reduce((acc, action) => ({
       ...acc,
-      [action.id]: action.defaultModel
+      [action.id]: { provider: action.defaultProvider, model: action.defaultModel }
     }), {})
   )
   const [showModelConfig, setShowModelConfig] = useState(false)
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   // Generate options on mount if not already generated
   useEffect(() => {
@@ -398,20 +362,18 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
     }
   }
 
-  const handleModelChange = (actionId: string, modelId: string) => {
-    setActionModels(prev => ({
+  const handleModelChange = (actionId: string, providerId: string, modelId: string) => {
+    setModelSelections(prev => ({
       ...prev,
-      [actionId]: modelId
+      [actionId]: { provider: providerId, model: modelId }
     }))
-    setOpenDropdown(null)
   }
 
-  const getModelById = (modelId: string) => AI_MODELS.find(m => m.id === modelId)
-
   const calculateTotalCost = () => {
-    return Object.values(actionModels).reduce((total, modelId) => {
-      const model = getModelById(modelId)
-      return total + (model?.cost || 0)
+    return CRIACAO_TO_ESTUDIO_ACTIONS.reduce((total, action) => {
+      const selection = modelSelections[action.id]
+      if (!selection) return total
+      return total + estimateCost(selection.provider, selection.model, action.estimatedTokens)
     }, 0)
   }
 
@@ -601,14 +563,18 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
                   <p className="text-sm text-text-secondary">
                     {showModelConfig
                       ? 'Configurar modelos por ação'
-                      : `${NEXT_PHASE_ACTIONS.length} ações • Custo estimado: ${isTestMode ? '$0.00' : `$${calculateTotalCost().toFixed(4)}`}`}
+                      : `${CRIACAO_TO_ESTUDIO_ACTIONS.length} ações • Custo estimado: ${isTestMode ? '$0.00' : `$${calculateTotalCost().toFixed(4)}`}`}
                   </p>
                 </div>
               </div>
               {showModelConfig ? (
-                <ChevronUp className="w-5 h-5 text-text-secondary" />
+                <svg className="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
               ) : (
-                <ChevronDown className="w-5 h-5 text-text-secondary" />
+                <svg className="w-5 h-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               )}
             </button>
 
@@ -620,97 +586,20 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
-                    {NEXT_PHASE_ACTIONS.map((action) => {
-                      const selectedModel = getModelById(actionModels[action.id])
-                      const isOpen = openDropdown === action.id
-
-                      return (
-                        <div key={action.id} className="p-3 rounded-xl bg-background/50">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-text-primary">
-                                {action.label}
-                              </p>
-                              <p className="text-xs text-text-secondary truncate">
-                                {action.description}
-                              </p>
-                            </div>
-
-                            {/* Model Selector */}
-                            <div className="relative">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setOpenDropdown(isOpen ? null : action.id)
-                                }}
-                                className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors min-w-[180px]"
-                              >
-                                <Zap className="w-4 h-4 text-accent-purple flex-shrink-0" />
-                                <div className="flex-1 text-left">
-                                  <p className="text-sm text-text-primary truncate">
-                                    {selectedModel?.name}
-                                  </p>
-                                  <p className="text-xs text-text-secondary">
-                                    {selectedModel?.provider} • {isTestMode ? '$0.00' : `$${selectedModel?.cost.toFixed(4)}`}
-                                  </p>
-                                </div>
-                                <ChevronDown
-                                  className={`w-4 h-4 text-text-secondary transition-transform flex-shrink-0 ${
-                                    isOpen ? 'rotate-180' : ''
-                                  }`}
-                                />
-                              </button>
-
-                              {/* Dropdown */}
-                              <AnimatePresence>
-                                {isOpen && (
-                                  <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="absolute top-full right-0 mt-1 w-64 bg-card border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-64 overflow-y-auto"
-                                  >
-                                    {AI_MODELS.map((model) => (
-                                      <button
-                                        key={model.id}
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleModelChange(action.id, model.id)
-                                        }}
-                                        className={`w-full flex items-center justify-between p-3 hover:bg-white/5 text-left ${
-                                          model.id === actionModels[action.id] ? 'bg-accent-purple/10' : ''
-                                        }`}
-                                      >
-                                        <div>
-                                          <p className="text-sm font-medium text-text-primary">
-                                            {model.name}
-                                          </p>
-                                          <p className="text-xs text-text-secondary">
-                                            {model.provider} • {model.speed}
-                                          </p>
-                                        </div>
-                                        <span className="text-xs text-status-success font-mono">
-                                          {isTestMode ? '$0.00' : `$${model.cost.toFixed(4)}`}
-                                        </span>
-                                      </button>
-                                    ))}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-
-                    {/* Total Cost */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-accent-purple/10 border border-accent-purple/20">
-                      <span className="text-sm text-text-secondary">Custo total estimado:</span>
-                      <span className="text-sm font-bold text-text-primary">
-                        {isTestMode ? '$0.00 (Test Mode)' : `$${calculateTotalCost().toFixed(4)}`}
-                      </span>
-                    </div>
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    {isTestMode && (
+                      <div className="flex items-center gap-2 px-3 py-2 mb-4 bg-status-warning/10 border border-status-warning/20 rounded-lg text-xs text-status-warning">
+                        <FlaskConical className="w-3 h-3" />
+                        <span>Test Mode: custos simulados</span>
+                      </div>
+                    )}
+                    <ActionModelSelector
+                      actions={CRIACAO_TO_ESTUDIO_ACTIONS}
+                      modelSelections={modelSelections}
+                      onModelChange={handleModelChange}
+                      title="Modelos para Estúdio"
+                      description="Selecione o modelo para cada ação"
+                    />
                   </div>
                 </motion.div>
               )}

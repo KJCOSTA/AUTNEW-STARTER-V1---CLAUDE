@@ -20,6 +20,10 @@ import {
   Film,
   Sparkles,
   Bot,
+  Edit3,
+  ToggleLeft,
+  ToggleRight,
+  AlertCircle,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -59,6 +63,8 @@ export function Configuracoes() {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<string | null>(null)
   const [showAddApiModal, setShowAddApiModal] = useState(false)
+  const [showEditApiModal, setShowEditApiModal] = useState(false)
+  const [editingApiKey, setEditingApiKey] = useState<{ key: string; label: string; value: string } | null>(null)
   const [newApiKey, setNewApiKey] = useState<Partial<APIKeyConfig>>({ nome: '', key: '', tipo: 'api-key' })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -125,6 +131,75 @@ export function Configuracoes() {
       apiKeysCustom: (configuracoes.apiKeysCustom || []).filter(k => k.nome !== nome)
     })
     addToast({ type: 'info', message: 'API Key removida' })
+  }
+
+  // Handle toggling API key active state
+  const handleToggleApiKey = (keyName: string) => {
+    const currentState = configuracoes.apiKeysAtivo?.[keyName] ?? true
+    setConfiguracoes({
+      apiKeysAtivo: {
+        ...(configuracoes.apiKeysAtivo || {}),
+        [keyName]: !currentState
+      }
+    })
+    addToast({
+      type: 'info',
+      message: `${keyName}: ${!currentState ? 'Ativada' : 'Desativada'}`
+    })
+  }
+
+  // Handle toggling custom API key active state
+  const handleToggleCustomApiKey = (nome: string) => {
+    const updated = (configuracoes.apiKeysCustom || []).map(k =>
+      k.nome === nome ? { ...k, ativo: !(k.ativo ?? true) } : k
+    )
+    setConfiguracoes({ apiKeysCustom: updated })
+    const key = updated.find(k => k.nome === nome)
+    addToast({
+      type: 'info',
+      message: `${nome}: ${key?.ativo ? 'Ativada' : 'Desativada'}`
+    })
+  }
+
+  // Handle editing built-in API key
+  const handleEditApiKey = (keyName: string, label: string) => {
+    const currentValue = configuracoes.apiKeys[keyName as keyof typeof configuracoes.apiKeys] || ''
+    setEditingApiKey({ key: keyName, label, value: currentValue })
+    setShowEditApiModal(true)
+  }
+
+  // Handle saving edited API key
+  const handleSaveEditedApiKey = () => {
+    if (!editingApiKey) return
+    setConfiguracoes({
+      apiKeys: {
+        ...configuracoes.apiKeys,
+        [editingApiKey.key]: editingApiKey.value
+      }
+    })
+    setShowEditApiModal(false)
+    setEditingApiKey(null)
+    addToast({ type: 'success', message: 'API Key atualizada!' })
+  }
+
+  // Handle removing built-in API key
+  const handleRemoveBuiltInApiKey = (keyName: string) => {
+    setConfiguracoes({
+      apiKeys: {
+        ...configuracoes.apiKeys,
+        [keyName]: ''
+      }
+    })
+    addToast({ type: 'info', message: 'API Key removida' })
+  }
+
+  // Handle editing custom API key
+  const handleEditCustomApiKey = (nome: string, newKey: string) => {
+    const updated = (configuracoes.apiKeysCustom || []).map(k =>
+      k.nome === nome ? { ...k, key: newKey } : k
+    )
+    setConfiguracoes({ apiKeysCustom: updated })
+    addToast({ type: 'success', message: 'API Key atualizada!' })
   }
 
   const testApiKey = async (keyName: string, apiKey: string) => {
@@ -405,89 +480,139 @@ export function Configuracoes() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {apiKeyFields.map((field) => (
-            <div
-              key={field.key}
-              className={`p-4 rounded-xl border ${
-                field.production && configuracoes.modo === 'mvp'
-                  ? 'border-white/5 opacity-50'
-                  : 'border-white/10'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <label className="text-sm font-medium text-text-primary">
-                    {field.label}
-                    {field.required && (
-                      <span className="text-status-error ml-1">*</span>
+          {apiKeyFields.map((field) => {
+            const hasKey = !!configuracoes.apiKeys[field.key as keyof typeof configuracoes.apiKeys]
+            const isActive = configuracoes.apiKeysAtivo?.[field.key] ?? true
+            const isDisabled = field.production && configuracoes.modo === 'mvp'
+
+            return (
+              <div
+                key={field.key}
+                className={`p-4 rounded-xl border transition-all ${
+                  isDisabled
+                    ? 'border-white/5 opacity-50'
+                    : !isActive && hasKey
+                    ? 'border-status-warning/20 bg-status-warning/5'
+                    : 'border-white/10'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    {/* Toggle Switch */}
+                    {hasKey && !isDisabled && (
+                      <button
+                        onClick={() => handleToggleApiKey(field.key)}
+                        className="flex-shrink-0"
+                        title={isActive ? 'Desativar' : 'Ativar'}
+                      >
+                        {isActive ? (
+                          <ToggleRight className="w-6 h-6 text-status-success" />
+                        ) : (
+                          <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                        )}
+                      </button>
                     )}
-                    {field.production && (
-                      <span className="ml-2 px-2 py-0.5 text-xs bg-accent-purple/20 text-accent-purple rounded">
-                        Produção
-                      </span>
+                    <div>
+                      <label className="text-sm font-medium text-text-primary flex items-center gap-2">
+                        {field.label}
+                        {field.required && (
+                          <span className="text-status-error">*</span>
+                        )}
+                        {field.production && (
+                          <span className="px-2 py-0.5 text-xs bg-accent-purple/20 text-accent-purple rounded">
+                            Produção
+                          </span>
+                        )}
+                        {!isActive && hasKey && (
+                          <span className="px-2 py-0.5 text-xs bg-status-warning/20 text-status-warning rounded">
+                            Desativada
+                          </span>
+                        )}
+                      </label>
+                      <p className="text-xs text-text-secondary">{field.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasKey && (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-status-success" />
+                        {/* Edit Button */}
+                        <button
+                          onClick={() => handleEditApiKey(field.key, field.label)}
+                          className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
+                          title="Editar"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        {/* Remove Button */}
+                        <button
+                          onClick={() => handleRemoveBuiltInApiKey(field.key)}
+                          className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
+                          title="Remover"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
-                  </label>
-                  <p className="text-xs text-text-secondary">{field.description}</p>
+                  </div>
                 </div>
-                {configuracoes.apiKeys[field.key as keyof typeof configuracoes.apiKeys] && (
-                  <CheckCircle className="w-4 h-4 text-status-success" />
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      type={showKeys[field.key] ? 'text' : 'password'}
+                      placeholder={`Cole sua ${field.label} API Key`}
+                      value={
+                        configuracoes.apiKeys[
+                          field.key as keyof typeof configuracoes.apiKeys
+                        ]
+                      }
+                      onChange={(e) =>
+                        setConfiguracoes({
+                          apiKeys: {
+                            ...configuracoes.apiKeys,
+                            [field.key]: e.target.value,
+                          },
+                        })
+                      }
+                      disabled={isDisabled}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleShowKey(field.key)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                    >
+                      {showKeys[field.key] ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      testApiKey(
+                        field.key,
+                        configuracoes.apiKeys[
+                          field.key as keyof typeof configuracoes.apiKeys
+                        ] || ''
+                      )
+                    }
+                    loading={testing === field.key}
+                    disabled={!hasKey || isDisabled || !isActive}
+                  >
+                    Testar
+                  </Button>
+                </div>
+                {!isActive && hasKey && (
+                  <div className="flex items-center gap-2 mt-2 text-xs text-status-warning">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>Esta API key está desativada e não será usada nas gerações</span>
+                  </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Input
-                    type={showKeys[field.key] ? 'text' : 'password'}
-                    placeholder={`Cole sua ${field.label} API Key`}
-                    value={
-                      configuracoes.apiKeys[
-                        field.key as keyof typeof configuracoes.apiKeys
-                      ]
-                    }
-                    onChange={(e) =>
-                      setConfiguracoes({
-                        apiKeys: {
-                          ...configuracoes.apiKeys,
-                          [field.key]: e.target.value,
-                        },
-                      })
-                    }
-                    disabled={field.production && configuracoes.modo === 'mvp'}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleShowKey(field.key)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
-                  >
-                    {showKeys[field.key] ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    testApiKey(
-                      field.key,
-                      configuracoes.apiKeys[
-                        field.key as keyof typeof configuracoes.apiKeys
-                      ] || ''
-                    )
-                  }
-                  loading={testing === field.key}
-                  disabled={
-                    !configuracoes.apiKeys[
-                      field.key as keyof typeof configuracoes.apiKeys
-                    ] ||
-                    (field.production && configuracoes.modo === 'mvp')
-                  }
-                >
-                  Testar
-                </Button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
 
           {/* Custom API Keys */}
           {configuracoes.apiKeysCustom && configuracoes.apiKeysCustom.length > 0 && (
@@ -495,49 +620,94 @@ export function Configuracoes() {
               <div className="border-t border-white/10 pt-4 mt-4">
                 <p className="text-sm font-medium text-text-primary mb-3">API Keys Personalizadas</p>
               </div>
-              {configuracoes.apiKeysCustom.map((customKey) => (
-                <div
-                  key={customKey.nome}
-                  className="p-4 rounded-xl border border-white/10 bg-white/5"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm font-medium text-text-primary">
-                        {customKey.nome}
-                      </label>
-                      <span className="px-2 py-0.5 text-xs bg-status-warning/20 text-status-warning rounded">
-                        Custom
-                      </span>
+              {configuracoes.apiKeysCustom.map((customKey) => {
+                const isCustomActive = customKey.ativo ?? true
+                return (
+                  <div
+                    key={customKey.nome}
+                    className={`p-4 rounded-xl border transition-all ${
+                      !isCustomActive
+                        ? 'border-status-warning/20 bg-status-warning/5'
+                        : 'border-white/10 bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        {/* Toggle Switch */}
+                        <button
+                          onClick={() => handleToggleCustomApiKey(customKey.nome)}
+                          className="flex-shrink-0"
+                          title={isCustomActive ? 'Desativar' : 'Ativar'}
+                        >
+                          {isCustomActive ? (
+                            <ToggleRight className="w-6 h-6 text-status-success" />
+                          ) : (
+                            <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                          )}
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-text-primary">
+                            {customKey.nome}
+                          </label>
+                          <span className="px-2 py-0.5 text-xs bg-accent-blue/20 text-accent-blue rounded">
+                            Custom
+                          </span>
+                          {!isCustomActive && (
+                            <span className="px-2 py-0.5 text-xs bg-status-warning/20 text-status-warning rounded">
+                              Desativada
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setEditingApiKey({ key: customKey.nome, label: customKey.nome, value: customKey.key })
+                            setShowEditApiModal(true)
+                          }}
+                          className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
+                          title="Editar"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveCustomApiKey(customKey.nome)}
+                          className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
+                          title="Remover"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleRemoveCustomApiKey(customKey.nome)}
-                      className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <Input
-                        type={showKeys[customKey.nome] ? 'text' : 'password'}
-                        value={customKey.key}
-                        readOnly
-                      />
-                      <button
-                        type="button"
-                        onClick={() => toggleShowKey(customKey.nome)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
-                      >
-                        {showKeys[customKey.nome] ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative">
+                        <Input
+                          type={showKeys[customKey.nome] ? 'text' : 'password'}
+                          value={customKey.key}
+                          onChange={(e) => handleEditCustomApiKey(customKey.nome, e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleShowKey(customKey.nome)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                        >
+                          {showKeys[customKey.nome] ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
+                    {!isCustomActive && (
+                      <div className="flex items-center gap-2 mt-2 text-xs text-status-warning">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>Esta API key está desativada e não será usada nas gerações</span>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </>
           )}
         </CardContent>
@@ -856,6 +1026,93 @@ export function Configuracoes() {
                   icon={<Plus className="w-4 h-4" />}
                 >
                   Adicionar
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit API Key Modal */}
+      <AnimatePresence>
+        {showEditApiModal && editingApiKey && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setShowEditApiModal(false)
+              setEditingApiKey(null)
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-text-primary">
+                  Editar API Key - {editingApiKey.label}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowEditApiModal(false)
+                    setEditingApiKey(null)
+                  }}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="relative">
+                  <Input
+                    label="API Key"
+                    type={showKeys['editApiKey'] ? 'text' : 'password'}
+                    placeholder="Cole a nova API Key..."
+                    value={editingApiKey.value}
+                    onChange={(e) => setEditingApiKey({ ...editingApiKey, value: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleShowKey('editApiKey')}
+                    className="absolute right-3 top-9 text-text-secondary hover:text-text-primary"
+                  >
+                    {showKeys['editApiKey'] ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <div className="p-3 bg-status-warning/10 border border-status-warning/20 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-status-warning flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-status-warning">
+                      Certifique-se de que a nova chave seja válida antes de salvar.
+                      A chave anterior será substituída permanentemente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setShowEditApiModal(false)
+                    setEditingApiKey(null)
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSaveEditedApiKey}
+                  icon={<Save className="w-4 h-4" />}
+                >
+                  Salvar
                 </Button>
               </div>
             </motion.div>
