@@ -28,6 +28,8 @@ import {
   Video,
   Upload,
   Sliders,
+  FlaskConical,
+  ShieldAlert,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -77,11 +79,13 @@ const COSTS = {
   roteiro: {
     gemini: 0,
     gpt4: 0.02,
+    claude: 0.015, // Claude 3.5 Sonnet - melhor qualidade
     manual: 0,
   },
   tituloSeo: {
     gemini: 0,
     gpt4: 0.01,
+    claude: 0.008,
   },
   thumbnail: {
     'dalle-standard': 0.04,
@@ -184,6 +188,7 @@ export function Configuracoes() {
 
   // Custom mode modal state
   const [showCustomModeModal, setShowCustomModeModal] = useState(false)
+  const [showTestModeConfirm, setShowTestModeConfirm] = useState(false)
   const [customModeConfig, setCustomModeConfig] = useState<CustomModeConfig>({
     nome: 'Meu Modo Personalizado',
     roteiro: 'gemini',
@@ -1024,6 +1029,97 @@ export function Configuracoes() {
         </CardContent>
       </Card>
 
+      {/* Development Mode Toggle */}
+      <Card className="border-amber-500/30">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <FlaskConical className="w-5 h-5 text-amber-500" />
+            <div>
+              <CardTitle>Modo de Desenvolvimento</CardTitle>
+              <CardDescription>
+                Controle o uso de dados simulados vs APIs reais
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Toggle */}
+            <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-white/10">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    if (configuracoes.appMode === 'test') {
+                      // Going to production - needs confirmation
+                      setShowTestModeConfirm(true)
+                    } else {
+                      // Going to test mode - no confirmation needed
+                      setConfiguracoes({ appMode: 'test' })
+                      addToast({ type: 'info', message: 'Modo Teste ativado - dados simulados' })
+                    }
+                  }}
+                  className="flex-shrink-0"
+                >
+                  {configuracoes.appMode === 'test' ? (
+                    <ToggleRight className="w-8 h-8 text-amber-500" />
+                  ) : (
+                    <ToggleLeft className="w-8 h-8 text-text-secondary" />
+                  )}
+                </button>
+                <div>
+                  <p className="font-medium text-text-primary">
+                    Modo Teste (dados simulados)
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    Quando ativo, não gasta créditos das APIs
+                  </p>
+                </div>
+              </div>
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                configuracoes.appMode === 'test'
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-status-success/20 text-status-success'
+              }`}>
+                {configuracoes.appMode === 'test' ? 'TESTE' : 'PRODUÇÃO'}
+              </span>
+            </div>
+
+            {/* Info based on mode */}
+            {configuracoes.appMode === 'test' ? (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <FlaskConical className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-400 mb-1">Modo Teste Ativo</p>
+                    <ul className="text-xs text-amber-400/80 space-y-1">
+                      <li>• APIs NÃO são chamadas (dados simulados)</li>
+                      <li>• Nenhum crédito será gasto</li>
+                      <li>• Conteúdo marcado como "(SIMULADO)"</li>
+                      <li>• Ideal para desenvolvimento e testes</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-status-success/10 border border-status-success/20 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-status-success flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-status-success mb-1">Produção Real Ativa</p>
+                    <ul className="text-xs text-status-success/80 space-y-1">
+                      <li>• APIs REAIS sendo chamadas</li>
+                      <li>• Créditos serão consumidos</li>
+                      <li>• Vídeos renderizados de verdade</li>
+                      <li>• Uploads para YouTube serão reais</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* All Available APIs Reference */}
       <Card>
         <CardHeader>
@@ -1123,11 +1219,12 @@ export function Configuracoes() {
                     <FileText className="w-4 h-4 text-accent-blue" />
                     Etapa Roteiro
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
-                      { value: 'gemini' as RoteiroOption, label: 'Gemini 2.5 Flash', cost: 'grátis' },
-                      { value: 'gpt4' as RoteiroOption, label: 'GPT-4o', cost: '~$0.02' },
-                      { value: 'manual' as RoteiroOption, label: 'Escrever manualmente', cost: 'grátis' },
+                      { value: 'gemini' as RoteiroOption, label: 'Gemini 2.5 Flash', cost: 'grátis', badge: 'Padrão' },
+                      { value: 'claude' as RoteiroOption, label: 'Claude 3.5 Sonnet', cost: '~$0.015', badge: 'Premium' },
+                      { value: 'gpt4' as RoteiroOption, label: 'GPT-4o', cost: '~$0.02', badge: '' },
+                      { value: 'manual' as RoteiroOption, label: 'Escrever manualmente', cost: 'grátis', badge: '' },
                     ].map((option) => (
                       <button
                         key={option.value}
@@ -1138,7 +1235,16 @@ export function Configuracoes() {
                             : 'border-white/10 hover:border-white/20'
                         }`}
                       >
-                        <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                          {option.badge && (
+                            <span className={`px-1.5 py-0.5 text-[10px] rounded ${
+                              option.badge === 'Premium' ? 'bg-accent-purple/20 text-accent-purple' : 'bg-status-success/20 text-status-success'
+                            }`}>
+                              {option.badge}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-text-secondary">{option.cost}</p>
                       </button>
                     ))}
@@ -1151,9 +1257,10 @@ export function Configuracoes() {
                     <FileText className="w-4 h-4 text-accent-purple" />
                     Etapa Títulos e SEO
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {[
                       { value: 'gemini' as TituloSeoOption, label: 'Gemini', cost: 'grátis' },
+                      { value: 'claude' as TituloSeoOption, label: 'Claude 3.5', cost: '~$0.008' },
                       { value: 'gpt4' as TituloSeoOption, label: 'GPT-4o', cost: '~$0.01' },
                     ].map((option) => (
                       <button
@@ -1400,6 +1507,80 @@ export function Configuracoes() {
                   icon={<Plus className="w-4 h-4" />}
                 >
                   Adicionar
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Test Mode Confirmation Modal */}
+      <AnimatePresence>
+        {showTestModeConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowTestModeConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-status-warning/20 flex items-center justify-center">
+                  <ShieldAlert className="w-6 h-6 text-status-warning" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-text-primary">Atenção</h2>
+                  <p className="text-sm text-text-secondary">Confirme a mudança de modo</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-status-warning/10 border border-status-warning/20 rounded-xl mb-4">
+                <p className="text-sm text-text-primary mb-3">
+                  Ao desativar o Modo Teste, todas as operações serão <strong className="text-status-warning">REAIS</strong>:
+                </p>
+                <ul className="text-sm text-text-secondary space-y-2">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
+                    APIs serão chamadas (pode gerar custos)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
+                    Vídeos serão renderizados de verdade
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
+                    Uploads para o YouTube serão reais
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
+                    Créditos das APIs serão consumidos
+                  </li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowTestModeConfirm(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => {
+                    setConfiguracoes({ appMode: 'production' })
+                    setShowTestModeConfirm(false)
+                    addToast({ type: 'success', message: 'Modo Produção ativado - APIs reais!' })
+                  }}
+                  className="bg-status-warning hover:bg-status-warning/90 text-black"
+                >
+                  Confirmar - Ir para Produção
                 </Button>
               </div>
             </motion.div>
