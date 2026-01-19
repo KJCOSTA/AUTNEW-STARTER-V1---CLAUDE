@@ -294,7 +294,25 @@ export interface APIStatusInfo {
 }
 
 // Settings
-export type OperationMode = 'mvp' | 'producao' | 'full-ai'
+export type OperationMode = 'mvp' | 'producao' | 'full-ai' | 'custom'
+
+// Custom Mode Step Options
+export type RoteiroOption = 'gemini' | 'gpt4' | 'manual'
+export type TituloSeoOption = 'gemini' | 'gpt4'
+export type ThumbnailOption = 'dalle-standard' | 'dalle-hd' | 'manual'
+export type NarracaoOption = 'elevenlabs-multilingual' | 'elevenlabs-turbo' | 'manual' | 'capcut-tts'
+export type VideoOption = 'json2video' | 'capcut' | 'remotion'
+export type UploadOption = 'youtube-api' | 'manual'
+
+export interface CustomModeConfig {
+  nome: string
+  roteiro: RoteiroOption
+  tituloSeo: TituloSeoOption
+  thumbnail: ThumbnailOption
+  narracao: NarracaoOption
+  video: VideoOption
+  upload: UploadOption
+}
 
 // Test Mode
 export type AppMode = 'test' | 'production'
@@ -352,6 +370,8 @@ export interface Configuracoes {
     useWatermark: boolean
     previewMode: boolean
   }
+  // Custom mode configuration
+  customMode?: CustomModeConfig
 }
 
 // Global App State

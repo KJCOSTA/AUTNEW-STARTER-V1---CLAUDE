@@ -15,13 +15,19 @@ import {
   X,
   HardDrive,
   Trash2,
-  Film,
-  Sparkles,
   Bot,
   Edit3,
   ToggleLeft,
   ToggleRight,
   AlertCircle,
+  Star,
+  DollarSign,
+  FileText,
+  Image,
+  Mic,
+  Video,
+  Upload,
+  Sliders,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -34,7 +40,17 @@ import {
   CardDescription,
   CardContent,
 } from '../ui'
-import type { OperationMode, APIKeyConfig } from '../../types'
+import type {
+  OperationMode,
+  APIKeyConfig,
+  CustomModeConfig,
+  RoteiroOption,
+  TituloSeoOption,
+  ThumbnailOption,
+  NarracaoOption,
+  VideoOption,
+  UploadOption,
+} from '../../types'
 
 // All available API providers
 const ALL_API_PROVIDERS = [
@@ -56,6 +72,82 @@ const OAUTH_PROVIDERS = [
   { key: 'googleDrive', label: 'Google Drive', icon: HardDrive, color: 'text-blue-400' },
 ]
 
+// Cost estimates per option
+const COSTS = {
+  roteiro: {
+    gemini: 0,
+    gpt4: 0.02,
+    manual: 0,
+  },
+  tituloSeo: {
+    gemini: 0,
+    gpt4: 0.01,
+  },
+  thumbnail: {
+    'dalle-standard': 0.04,
+    'dalle-hd': 0.08,
+    manual: 0,
+  },
+  narracao: {
+    'elevenlabs-multilingual': 0.30, // ~6 min video
+    'elevenlabs-turbo': 0.12,
+    manual: 0,
+    'capcut-tts': 0,
+  },
+  video: {
+    json2video: 2.40, // ~6 min video
+    capcut: 0,
+    remotion: 0,
+  },
+  upload: {
+    'youtube-api': 0,
+    manual: 0,
+  },
+}
+
+// Pre-defined modes
+const PREDEFINED_MODES = [
+  {
+    id: 'mvp' as OperationMode,
+    nome: 'MVP Gratuito',
+    custo: '$0/mês',
+    indicador: 'Mais econômico',
+    recomendado: false,
+    config: {
+      roteiro: 'Gemini (grátis)',
+      thumbnail: 'DALL-E (~$0.08 cada)',
+      narracao: 'Manual (você grava no CapCut)',
+      video: 'Manual (você monta no CapCut)',
+    },
+  },
+  {
+    id: 'producao' as OperationMode,
+    nome: 'Automação Completa',
+    custo: '$10-15/mês',
+    indicador: '⭐ Recomendado - Vídeo pronto automaticamente',
+    recomendado: true,
+    config: {
+      roteiro: 'Gemini (grátis)',
+      thumbnail: 'DALL-E (~$0.08 cada)',
+      narracao: 'ElevenLabs (automático)',
+      video: 'JSON2Video (renderização automática)',
+    },
+  },
+  {
+    id: 'full-ai' as OperationMode,
+    nome: 'Full AI Premium',
+    custo: '$25-40/mês',
+    indicador: 'Máxima qualidade e automação',
+    recomendado: false,
+    config: {
+      roteiro: 'Gemini + refinamento GPT-4',
+      thumbnail: 'DALL-E HD',
+      narracao: 'ElevenLabs (voz premium)',
+      video: 'JSON2Video + imagens de cena IA',
+    },
+  },
+]
+
 export function Configuracoes() {
   const { configuracoes, setConfiguracoes, addToast } = useStore()
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
@@ -65,14 +157,41 @@ export function Configuracoes() {
   const [editingApiKey, setEditingApiKey] = useState<{ key: string; label: string; value: string } | null>(null)
   const [newApiKey, setNewApiKey] = useState<Partial<APIKeyConfig>>({ nome: '', key: '', tipo: 'api-key' })
 
+  // Custom mode modal state
+  const [showCustomModeModal, setShowCustomModeModal] = useState(false)
+  const [customModeConfig, setCustomModeConfig] = useState<CustomModeConfig>({
+    nome: 'Meu Modo Personalizado',
+    roteiro: 'gemini',
+    tituloSeo: 'gemini',
+    thumbnail: 'dalle-standard',
+    narracao: 'elevenlabs-turbo',
+    video: 'json2video',
+    upload: 'youtube-api',
+  })
+
   const toggleShowKey = (key: string) => {
     setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  // Calculate cost for custom mode
+  const calculateCustomModeCost = (config: CustomModeConfig) => {
+    const perVideo =
+      COSTS.roteiro[config.roteiro] +
+      COSTS.tituloSeo[config.tituloSeo] +
+      COSTS.thumbnail[config.thumbnail] +
+      COSTS.narracao[config.narracao] +
+      COSTS.video[config.video] +
+      COSTS.upload[config.upload]
+
+    return {
+      perVideo: perVideo.toFixed(2),
+      monthly: (perVideo * 20).toFixed(2),
+    }
   }
 
   // Handle Google Drive connection
   const handleGoogleDriveConnect = () => {
     addToast({ type: 'info', message: 'Conectando ao Google Drive...' })
-    // In real implementation, initiate OAuth
     setConfiguracoes({
       googleDrive: { conectado: true }
     })
@@ -223,10 +342,12 @@ export function Configuracoes() {
     }
 
     setConfiguracoes({ modo: mode })
+
     const modeLabels: Record<OperationMode, string> = {
-      'mvp': 'MVP',
-      'producao': 'Produção',
-      'full-ai': 'Full AI'
+      'mvp': 'MVP Gratuito',
+      'producao': 'Automação Completa',
+      'full-ai': 'Full AI Premium',
+      'custom': 'Modo Personalizado'
     }
     addToast({
       type: 'info',
@@ -234,13 +355,20 @@ export function Configuracoes() {
     })
   }
 
+  const handleSaveCustomMode = () => {
+    setConfiguracoes({
+      modo: 'custom',
+      customMode: customModeConfig
+    })
+    setShowCustomModeModal(false)
+    addToast({ type: 'success', message: 'Modo personalizado salvo!' })
+  }
+
   const handleYouTubeConnect = () => {
-    // In a real implementation, this would initiate OAuth flow
     addToast({
       type: 'info',
       message: 'Redirecionando para autenticação do YouTube...',
     })
-    // window.location.href = '/api/youtube/auth'
   }
 
   const handleSave = () => {
@@ -300,6 +428,8 @@ export function Configuracoes() {
     },
   ]
 
+  const customCosts = calculateCustomModeCost(customModeConfig)
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -320,7 +450,7 @@ export function Configuracoes() {
         </Button>
       </div>
 
-      {/* Operation Mode */}
+      {/* Operation Mode - NEW DESIGN */}
       <Card variant="gradient">
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -328,89 +458,126 @@ export function Configuracoes() {
             <div>
               <CardTitle>Modo de Operação</CardTitle>
               <CardDescription>
-                Escolha entre MVP, Produção ou Full AI
+                Escolha como você quer produzir seus vídeos
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Pre-defined Modes Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* MVP Mode */}
-            <button
-              onClick={() => handleModeChange('mvp')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                configuracoes.modo === 'mvp'
-                  ? 'border-accent-blue bg-accent-blue/10 ring-2 ring-accent-blue/50'
-                  : 'border-white/10 hover:border-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Zap className={`w-5 h-5 ${configuracoes.modo === 'mvp' ? 'text-accent-blue' : 'text-text-secondary'}`} />
-                <h4 className="font-medium text-text-primary">MVP</h4>
-                {configuracoes.modo === 'mvp' && (
-                  <CheckCircle className="w-4 h-4 text-accent-blue ml-auto" />
+            {PREDEFINED_MODES.map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => handleModeChange(mode.id)}
+                className={`relative p-4 rounded-xl border text-left transition-all ${
+                  configuracoes.modo === mode.id
+                    ? mode.recomendado
+                      ? 'border-status-success bg-status-success/10 ring-2 ring-status-success/50'
+                      : 'border-accent-blue bg-accent-blue/10 ring-2 ring-accent-blue/50'
+                    : mode.recomendado
+                    ? 'border-status-success/50 hover:border-status-success hover:bg-status-success/5'
+                    : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                }`}
+              >
+                {/* Recommended Badge */}
+                {mode.recomendado && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                    <span className="px-3 py-1 bg-status-success text-white text-xs font-medium rounded-full flex items-center gap-1">
+                      <Star className="w-3 h-3" />
+                      Recomendado
+                    </span>
+                  </div>
                 )}
-              </div>
-              <p className="text-xs text-text-secondary mb-2">Gratuito - $0/mês</p>
-              <ul className="space-y-1 text-xs text-text-secondary">
-                <li>• Gemini para roteiros</li>
-                <li>• DALL-E para thumbnails</li>
-                <li>• Montagem manual (CapCut)</li>
-              </ul>
-            </button>
 
-            {/* Production Mode */}
-            <button
-              onClick={() => handleModeChange('producao')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                configuracoes.modo === 'producao'
-                  ? 'border-accent-purple bg-accent-purple/10 ring-2 ring-accent-purple/50'
-                  : 'border-white/10 hover:border-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Film className={`w-5 h-5 ${configuracoes.modo === 'producao' ? 'text-accent-purple' : 'text-text-secondary'}`} />
-                <h4 className="font-medium text-text-primary">Produção</h4>
-                {configuracoes.modo === 'producao' && (
-                  <CheckCircle className="w-4 h-4 text-accent-purple ml-auto" />
-                )}
-              </div>
-              <p className="text-xs text-text-secondary mb-2">~$10-15/mês</p>
-              <ul className="space-y-1 text-xs text-text-secondary">
-                <li>• Tudo do MVP +</li>
-                <li>• ElevenLabs (narração)</li>
-                <li>• JSON2Video (render)</li>
-              </ul>
-            </button>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3 mt-1">
+                  <h4 className="font-semibold text-text-primary">{mode.nome}</h4>
+                  {configuracoes.modo === mode.id && (
+                    <CheckCircle className={`w-5 h-5 ${mode.recomendado ? 'text-status-success' : 'text-accent-blue'}`} />
+                  )}
+                </div>
 
-            {/* Full AI Mode */}
-            <button
-              onClick={() => handleModeChange('full-ai')}
-              className={`p-4 rounded-xl border text-left transition-all ${
-                configuracoes.modo === 'full-ai'
-                  ? 'border-status-success bg-status-success/10 ring-2 ring-status-success/50'
-                  : 'border-white/10 hover:border-white/20'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className={`w-5 h-5 ${configuracoes.modo === 'full-ai' ? 'text-status-success' : 'text-text-secondary'}`} />
-                <h4 className="font-medium text-text-primary">Full AI</h4>
-                {configuracoes.modo === 'full-ai' && (
-                  <CheckCircle className="w-4 h-4 text-status-success ml-auto" />
-                )}
-              </div>
-              <p className="text-xs text-text-secondary mb-2">~$25-40/mês</p>
-              <ul className="space-y-1 text-xs text-text-secondary">
-                <li>• Tudo do Produção +</li>
-                <li>• Geração de vídeo IA</li>
-                <li>• Visuais 100% gerados</li>
-              </ul>
-            </button>
+                {/* Cost */}
+                <div className="flex items-center gap-1 mb-3">
+                  <DollarSign className="w-4 h-4 text-status-warning" />
+                  <span className="text-sm font-medium text-text-primary">{mode.custo}</span>
+                </div>
+
+                {/* Config Details */}
+                <ul className="space-y-1.5 text-xs text-text-secondary mb-3">
+                  <li className="flex items-start gap-2">
+                    <FileText className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span>{mode.config.roteiro}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Image className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span>{mode.config.thumbnail}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Mic className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span>{mode.config.narracao}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Video className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span>{mode.config.video}</span>
+                  </li>
+                </ul>
+
+                {/* Indicator */}
+                <div className={`text-xs font-medium ${
+                  mode.recomendado ? 'text-status-success' : 'text-text-secondary'
+                }`}>
+                  {mode.indicador}
+                </div>
+              </button>
+            ))}
           </div>
 
+          {/* Custom Mode Card (if saved) */}
+          {configuracoes.customMode && (
+            <button
+              onClick={() => handleModeChange('custom')}
+              className={`w-full p-4 rounded-xl border text-left transition-all ${
+                configuracoes.modo === 'custom'
+                  ? 'border-accent-purple bg-accent-purple/10 ring-2 ring-accent-purple/50'
+                  : 'border-white/10 hover:border-accent-purple/50 hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-accent-purple" />
+                  <h4 className="font-semibold text-text-primary">
+                    {configuracoes.customMode.nome}
+                  </h4>
+                  <span className="px-2 py-0.5 bg-accent-purple/20 text-accent-purple text-xs rounded">
+                    Personalizado
+                  </span>
+                </div>
+                {configuracoes.modo === 'custom' && (
+                  <CheckCircle className="w-5 h-5 text-accent-purple" />
+                )}
+              </div>
+              <div className="flex items-center gap-4 text-xs text-text-secondary">
+                <span>~${calculateCustomModeCost(configuracoes.customMode).perVideo}/vídeo</span>
+                <span>~${calculateCustomModeCost(configuracoes.customMode).monthly}/mês (20 vídeos)</span>
+              </div>
+            </button>
+          )}
+
+          {/* Create Custom Mode Button */}
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={() => setShowCustomModeModal(true)}
+            icon={<Plus className="w-4 h-4" />}
+          >
+            {configuracoes.customMode ? 'Editar Modo Personalizado' : 'Criar Meu Próprio Modo'}
+          </Button>
+
           {/* JSON2Video Watermark Option */}
-          {(configuracoes.modo === 'producao' || configuracoes.modo === 'full-ai') && (
-            <div className="mt-4 p-4 bg-background/50 rounded-xl">
+          {(configuracoes.modo === 'producao' || configuracoes.modo === 'full-ai' || configuracoes.modo === 'custom') && (
+            <div className="p-4 bg-background/50 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-text-primary text-sm">JSON2Video Watermark</p>
@@ -511,7 +678,6 @@ export function Configuracoes() {
                     {hasKey && (
                       <>
                         <CheckCircle className="w-4 h-4 text-status-success" />
-                        {/* Edit Button */}
                         <button
                           onClick={() => handleEditApiKey(field.key, field.label)}
                           className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
@@ -519,7 +685,6 @@ export function Configuracoes() {
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        {/* Remove Button */}
                         <button
                           onClick={() => handleRemoveBuiltInApiKey(field.key)}
                           className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
@@ -608,7 +773,6 @@ export function Configuracoes() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        {/* Toggle Switch */}
                         <button
                           onClick={() => handleToggleCustomApiKey(customKey.nome)}
                           className="flex-shrink-0"
@@ -732,7 +896,6 @@ export function Configuracoes() {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* OAuth Connection */}
               <div className="text-center py-4 border-b border-white/10">
                 <Youtube className="w-10 h-10 mx-auto mb-3 text-text-secondary" />
                 <p className="text-text-secondary text-sm mb-3">
@@ -746,7 +909,6 @@ export function Configuracoes() {
                 </Button>
               </div>
 
-              {/* Google Drive Sync */}
               <div className="space-y-3">
                 <p className="text-sm font-medium text-text-primary">
                   Ou sincronize com Google Drive:
@@ -851,7 +1013,6 @@ export function Configuracoes() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* API Keys */}
             <div>
               <p className="text-sm font-medium text-text-primary mb-2">Chaves de API</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -867,7 +1028,6 @@ export function Configuracoes() {
               </div>
             </div>
 
-            {/* OAuth Providers */}
             <div>
               <p className="text-sm font-medium text-text-primary mb-2">OAuth (Autenticação)</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -891,6 +1051,247 @@ export function Configuracoes() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Mode Modal */}
+      <AnimatePresence>
+        {showCustomModeModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+            onClick={() => setShowCustomModeModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-2xl my-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Sliders className="w-6 h-6 text-accent-purple" />
+                  <h2 className="text-lg font-bold text-text-primary">Criar Modo Personalizado</h2>
+                </div>
+                <button
+                  onClick={() => setShowCustomModeModal(false)}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Mode Name */}
+                <Input
+                  label="Nome do Modo"
+                  value={customModeConfig.nome}
+                  onChange={(e) => setCustomModeConfig({ ...customModeConfig, nome: e.target.value })}
+                  placeholder="Ex: Meu Modo Econômico"
+                />
+
+                {/* Step 1: Roteiro */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    <FileText className="w-4 h-4 text-accent-blue" />
+                    Etapa Roteiro
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      { value: 'gemini' as RoteiroOption, label: 'Gemini 2.5 Flash', cost: 'grátis' },
+                      { value: 'gpt4' as RoteiroOption, label: 'GPT-4o', cost: '~$0.02' },
+                      { value: 'manual' as RoteiroOption, label: 'Escrever manualmente', cost: 'grátis' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setCustomModeConfig({ ...customModeConfig, roteiro: option.value })}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          customModeConfig.roteiro === option.value
+                            ? 'border-accent-blue bg-accent-blue/10'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                        <p className="text-xs text-text-secondary">{option.cost}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 2: Títulos e SEO */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    <FileText className="w-4 h-4 text-accent-purple" />
+                    Etapa Títulos e SEO
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { value: 'gemini' as TituloSeoOption, label: 'Gemini', cost: 'grátis' },
+                      { value: 'gpt4' as TituloSeoOption, label: 'GPT-4o', cost: '~$0.01' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setCustomModeConfig({ ...customModeConfig, tituloSeo: option.value })}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          customModeConfig.tituloSeo === option.value
+                            ? 'border-accent-purple bg-accent-purple/10'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                        <p className="text-xs text-text-secondary">{option.cost}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 3: Thumbnails */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    <Image className="w-4 h-4 text-status-warning" />
+                    Etapa Thumbnails
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      { value: 'dalle-standard' as ThumbnailOption, label: 'DALL-E 3 Standard', cost: '~$0.04' },
+                      { value: 'dalle-hd' as ThumbnailOption, label: 'DALL-E 3 HD', cost: '~$0.08' },
+                      { value: 'manual' as ThumbnailOption, label: 'Criar no Canva', cost: 'grátis' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setCustomModeConfig({ ...customModeConfig, thumbnail: option.value })}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          customModeConfig.thumbnail === option.value
+                            ? 'border-status-warning bg-status-warning/10'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                        <p className="text-xs text-text-secondary">{option.cost}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 4: Narração */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    <Mic className="w-4 h-4 text-status-success" />
+                    Etapa Narração
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { value: 'elevenlabs-multilingual' as NarracaoOption, label: 'ElevenLabs Multilingual', cost: '~$0.05/min' },
+                      { value: 'elevenlabs-turbo' as NarracaoOption, label: 'ElevenLabs Turbo', cost: '~$0.02/min' },
+                      { value: 'manual' as NarracaoOption, label: 'Gravar minha voz', cost: 'grátis' },
+                      { value: 'capcut-tts' as NarracaoOption, label: 'TTS do CapCut', cost: 'grátis' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setCustomModeConfig({ ...customModeConfig, narracao: option.value })}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          customModeConfig.narracao === option.value
+                            ? 'border-status-success bg-status-success/10'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                        <p className="text-xs text-text-secondary">{option.cost}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 5: Vídeo */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    <Video className="w-4 h-4 text-red-500" />
+                    Etapa Vídeo
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      { value: 'json2video' as VideoOption, label: 'JSON2Video automático', cost: '~$0.40/min' },
+                      { value: 'capcut' as VideoOption, label: 'Montar no CapCut', cost: 'grátis' },
+                      { value: 'remotion' as VideoOption, label: 'Remotion (devs)', cost: 'grátis' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setCustomModeConfig({ ...customModeConfig, video: option.value })}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          customModeConfig.video === option.value
+                            ? 'border-red-500 bg-red-500/10'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                        <p className="text-xs text-text-secondary">{option.cost}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 6: Upload */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
+                    <Upload className="w-4 h-4 text-accent-blue" />
+                    Etapa Upload
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { value: 'youtube-api' as UploadOption, label: 'Publicar via API', cost: 'grátis' },
+                      { value: 'manual' as UploadOption, label: 'Baixar e publicar', cost: 'grátis' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setCustomModeConfig({ ...customModeConfig, upload: option.value })}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          customModeConfig.upload === option.value
+                            ? 'border-accent-blue bg-accent-blue/10'
+                            : 'border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <p className="text-sm font-medium text-text-primary">{option.label}</p>
+                        <p className="text-xs text-text-secondary">{option.cost}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cost Summary */}
+                <div className="p-4 bg-gradient-to-r from-accent-purple/10 to-accent-blue/10 border border-accent-purple/20 rounded-xl">
+                  <div className="flex items-center gap-2 mb-3">
+                    <DollarSign className="w-5 h-5 text-status-warning" />
+                    <h3 className="font-semibold text-text-primary">Custo Estimado</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-text-secondary">Por vídeo</p>
+                      <p className="text-2xl font-bold text-text-primary">${customCosts.perVideo}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-text-secondary">Mensal (20 vídeos)</p>
+                      <p className="text-2xl font-bold text-text-primary">${customCosts.monthly}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-white/10">
+                <Button variant="ghost" onClick={() => setShowCustomModeModal(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSaveCustomMode}
+                  icon={<Save className="w-4 h-4" />}
+                >
+                  Salvar Modo Personalizado
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Add API Key Modal */}
       <AnimatePresence>
@@ -946,7 +1347,6 @@ export function Configuracoes() {
                   </button>
                 </div>
 
-                {/* Quick Add from List */}
                 <div>
                   <p className="text-xs text-text-secondary mb-2">Ou selecione um provedor:</p>
                   <div className="flex flex-wrap gap-1.5">
