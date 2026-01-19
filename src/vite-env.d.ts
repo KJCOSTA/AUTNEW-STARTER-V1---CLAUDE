@@ -29,6 +29,9 @@ interface ImportMetaEnv {
   // Outras APIs opcionais
   readonly VITE_STABILITYAI_API_KEY: string
   readonly VITE_REPLICATE_API_KEY: string
+
+  // Modo de Desenvolvimento
+  readonly VITE_TEST_MODE: string // 'true' | 'false'
 }
 
 interface ImportMeta {

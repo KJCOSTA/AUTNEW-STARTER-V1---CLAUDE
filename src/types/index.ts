@@ -169,15 +169,34 @@ export interface CriacaoData {
 }
 
 // Phase 4: Studio - Scenes
+
+// Video/Image search result for selection
+export interface MediaOption {
+  id: string
+  url: string
+  thumbnailUrl: string
+  source: 'pexels' | 'pixabay' | 'unsplash' | 'dalle' | 'upload'
+  type: 'video' | 'image'
+  duration?: number // For videos, in seconds
+  attribution?: string
+  width?: number
+  height?: number
+}
+
 export interface Cena {
   id: number
   timestamp: string
   texto: string
   visualSugerido: string
+  searchQuery?: string // Editable search query for this scene
   visualUrl?: string
   visualTipo: 'stock' | 'gerado' | 'upload'
   audioUrl?: string
   audioDuracao?: number
+  // New: Selected media and available options
+  selectedMedia?: MediaOption
+  mediaOptions?: MediaOption[] // Search results for user to choose from
+  mediaSearchStatus?: 'idle' | 'searching' | 'found' | 'not-found'
 }
 
 export interface EstudioData {
@@ -297,8 +316,8 @@ export interface APIStatusInfo {
 export type OperationMode = 'mvp' | 'producao' | 'full-ai' | 'smart-economy' | 'custom'
 
 // Custom Mode Step Options
-export type RoteiroOption = 'gemini' | 'gpt4' | 'manual'
-export type TituloSeoOption = 'gemini' | 'gpt4'
+export type RoteiroOption = 'gemini' | 'gpt4' | 'claude' | 'manual'
+export type TituloSeoOption = 'gemini' | 'gpt4' | 'claude'
 export type ThumbnailOption = 'dalle-standard' | 'dalle-hd' | 'manual' | 'unsplash' | 'pexels'
 export type NarracaoOption = 'elevenlabs-multilingual' | 'elevenlabs-turbo' | 'edge-tts' | 'manual' | 'capcut-tts'
 export type VideoOption = 'json2video' | 'capcut' | 'remotion'

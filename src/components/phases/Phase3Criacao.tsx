@@ -13,6 +13,10 @@ import {
   Edit3,
   Type,
   Film,
+  Mic,
+  Play,
+  Pause,
+  Volume2,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -198,6 +202,14 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
   const [generatingThumb, setGeneratingThumb] = useState<number | null>(null)
   const [generatingAllThumbs, setGeneratingAllThumbs] = useState(false)
   const [regeneratingScript, setRegeneratingScript] = useState(false)
+
+  // Audio test state
+  const [selectedVoice, setSelectedVoice] = useState<'francisca' | 'antonio'>('francisca')
+  const [generatingAudio, setGeneratingAudio] = useState(false)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
+  const [audioDuration, setAudioDuration] = useState(0)
 
   // Model selection per action for next phase - using AI Registry
   const [modelSelections, setModelSelections] = useState<Record<string, { provider: string; model: string }>>(
@@ -429,6 +441,84 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
     }
   }
 
+  // Generate test audio for first 2-3 paragraphs
+  const generateTestAudio = async () => {
+    if (!criacao.roteiro.trim()) {
+      addToast({ type: 'warning', message: 'Gere o roteiro primeiro' })
+      return
+    }
+
+    setGeneratingAudio(true)
+
+    // Extract first 2-3 paragraphs (around 500-800 characters)
+    const paragraphs = criacao.roteiro
+      .split('\n\n')
+      .filter(p => p.trim() && !p.startsWith('#') && !p.startsWith('[') && !p.startsWith('---'))
+      .slice(0, 3)
+      .join('\n\n')
+      .slice(0, 800)
+
+    try {
+      if (isTestMode) {
+        await new Promise(r => setTimeout(r, 2000))
+        // Simulated audio URL
+        const mockAudioUrl = `data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfeli0=`
+        setAudioUrl(mockAudioUrl)
+        setAudioDuration(45)
+        addToast({ type: 'success', message: '[TEST MODE] Áudio simulado gerado!' })
+      } else {
+        const response = await fetch('/api/edge-tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: paragraphs,
+            voice: selectedVoice,
+            rate: '-5%',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.audioUrl) {
+            setAudioUrl(data.audioUrl)
+            setAudioDuration(data.duration || 60)
+            addToast({ type: 'success', message: 'Áudio de teste gerado!' })
+          } else if (data.needsConfiguration) {
+            addToast({
+              type: 'warning',
+              message: 'Configure AZURE_SPEECH_KEY para TTS real'
+            })
+          }
+        } else {
+          throw new Error('API Error')
+        }
+      }
+    } catch {
+      addToast({
+        type: 'error',
+        message: 'Erro ao gerar áudio. Verifique as configurações.'
+      })
+    } finally {
+      setGeneratingAudio(false)
+    }
+  }
+
+  // Play/Pause audio
+  const togglePlayAudio = () => {
+    if (!audioUrl) return
+
+    if (isPlaying && audioElement) {
+      audioElement.pause()
+      setIsPlaying(false)
+    } else {
+      const audio = new Audio(audioUrl)
+      audio.onended = () => setIsPlaying(false)
+      audio.play()
+      setAudioElement(audio)
+      setIsPlaying(true)
+    }
+  }
+
   const handleModelChange = (actionId: string, providerId: string, modelId: string) => {
     setModelSelections(prev => ({
       ...prev,
@@ -556,6 +646,81 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Audio Test Section */}
+      {criacao.roteiro && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent-blue/20 flex items-center justify-center">
+                <Mic className="w-5 h-5 text-accent-blue" />
+              </div>
+              <div>
+                <CardTitle>Teste de Locução</CardTitle>
+                <CardDescription>
+                  Ouça como ficará a narração com Edge TTS (gratuito)
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              {/* Voice Selector */}
+              <div className="flex-shrink-0">
+                <label className="flex items-center gap-1 text-xs text-text-secondary mb-1">
+                  <Volume2 className="w-3 h-3" />
+                  Voz
+                </label>
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value as 'francisca' | 'antonio')}
+                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-text-primary focus:outline-none focus:border-accent-blue"
+                >
+                  <option value="francisca">🎙️ Francisca (Feminina)</option>
+                  <option value="antonio">🎙️ Antonio (Masculina)</option>
+                </select>
+              </div>
+
+              {/* Generate Button */}
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={generateTestAudio}
+                loading={generatingAudio}
+                icon={<Mic className="w-4 h-4" />}
+              >
+                Gerar Locução de Teste
+              </Button>
+
+              {/* Audio Player */}
+              {audioUrl && (
+                <div className="flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-lg">
+                  <button
+                    onClick={togglePlayAudio}
+                    className="w-10 h-10 rounded-full bg-accent-blue/20 hover:bg-accent-blue/30 flex items-center justify-center transition-colors"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-5 h-5 text-accent-blue" />
+                    ) : (
+                      <Play className="w-5 h-5 text-accent-blue ml-0.5" />
+                    )}
+                  </button>
+                  <div className="text-sm">
+                    <p className="text-text-primary font-medium">Prévia do Áudio</p>
+                    <p className="text-xs text-text-secondary">
+                      ~{audioDuration}s • {selectedVoice === 'francisca' ? 'Francisca' : 'Antonio'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p className="mt-3 text-xs text-text-secondary">
+              💡 Gera áudio dos primeiros parágrafos do roteiro para testar a voz. O áudio completo será gerado na fase Estúdio.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Title Variants */}
       <Card>
