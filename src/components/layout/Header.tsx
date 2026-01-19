@@ -94,7 +94,7 @@ export function Header() {
   const confirmProductionMode = () => {
     setConfiguracoes({ appMode: 'production' })
     setShowTestModeConfirm(false)
-    addToast({ type: 'success', message: 'Modo Producao ativado - APIs reais!' })
+    addToast({ type: 'success', message: 'Modo REAL ativado - APIs ativas, custos podem ocorrer!' })
   }
 
   const markAllAsRead = () => {
@@ -151,15 +151,15 @@ export function Header() {
             </motion.div>
           )}
 
-          {/* Operation Mode indicator */}
+          {/* Workflow Mode indicator - separate from Test/Production toggle */}
           <div className="flex items-center gap-2">
             <div
               className={`w-2 h-2 rounded-full ${
-                isMVP ? 'bg-status-warning' : 'bg-status-success'
+                isMVP ? 'bg-status-warning' : 'bg-accent-purple'
               }`}
             />
             <span className="text-sm text-text-secondary">
-              Modo {isMVP ? 'MVP' : 'Producao'}
+              Workflow: {isMVP ? 'MVP (CapCut)' : 'Automático'}
             </span>
           </div>
         </div>
@@ -174,17 +174,23 @@ export function Header() {
             <button
               onClick={handleToggleTestMode}
               className="flex items-center gap-2"
+              title={isTestMode ? 'Dados simulados - clique para usar APIs reais' : 'APIs reais ativas - clique para simular'}
             >
               {isTestMode ? (
                 <ToggleRight className="w-6 h-6 text-amber-500" />
               ) : (
-                <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                <ToggleLeft className="w-6 h-6 text-status-success" />
               )}
-              <span className={`text-xs font-medium ${
-                isTestMode ? 'text-amber-400' : 'text-status-success'
-              }`}>
-                {isTestMode ? 'TESTE' : 'PRODUCAO'}
-              </span>
+              <div className="flex flex-col items-start">
+                <span className={`text-xs font-bold ${
+                  isTestMode ? 'text-amber-400' : 'text-status-success'
+                }`}>
+                  {isTestMode ? 'TESTE' : 'REAL'}
+                </span>
+                <span className="text-[10px] text-text-secondary">
+                  {isTestMode ? 'Dados mock' : 'APIs ativas'}
+                </span>
+              </div>
             </button>
           </div>
 
