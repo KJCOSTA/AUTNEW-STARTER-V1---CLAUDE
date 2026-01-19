@@ -246,34 +246,35 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         )
         addToast({ type: 'success', message: '[TEST MODE] Conteúdo gerado!' })
       } else {
-        // Real API call
-        try {
-          const response = await fetch('/api/gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'generate-video-content',
-              tema: gatilho.tema,
-              tipoConteudo: gatilho.tipoConteudo,
-              gatilhos: gatilho.gatilhosEmocionais,
-              duracao: gatilho.duracao,
-              diretrizes,
-            }),
-          })
+        // PRODUCTION MODE: Real API call only - NO fallback to mock data
+        const response = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate-video-content',
+            tema: gatilho.tema,
+            tipoConteudo: gatilho.tipoConteudo,
+            gatilhos: gatilho.gatilhosEmocionais,
+            duracao: gatilho.duracao,
+            diretrizes,
+          }),
+        })
 
-          if (response.ok) {
-            const data = await response.json()
-            titleVariants = data.titleVariants || getMockTitleVariants(gatilho.tema, gatilho.gatilhosEmocionais)
-            thumbVariants = data.thumbVariants || getMockThumbVariants()
-            roteiro = data.script || getMockRoteiro(gatilho.tema, titleVariants[0].titulo, titleVariants[0].goldenHook)
-          } else {
-            throw new Error('API Error')
-          }
-        } catch {
-          titleVariants = getMockTitleVariants(gatilho.tema, gatilho.gatilhosEmocionais)
-          thumbVariants = getMockThumbVariants()
-          roteiro = getMockRoteiro(gatilho.tema, titleVariants[0].titulo, titleVariants[0].goldenHook)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || errorData.message || 'Falha ao gerar conteúdo')
         }
+
+        const data = await response.json()
+
+        // Validate required fields
+        if (!data.titleVariants || !data.thumbVariants || !data.script) {
+          throw new Error('Resposta incompleta da API. Campos obrigatórios: titleVariants, thumbVariants, script')
+        }
+
+        titleVariants = data.titleVariants
+        thumbVariants = data.thumbVariants
+        roteiro = data.script
         addToast({ type: 'success', message: 'Conteúdo gerado com sucesso!' })
       }
 
@@ -404,32 +405,35 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         )
         addToast({ type: 'success', message: '[TEST MODE] Roteiro regenerado!' })
       } else {
-        try {
-          const response = await fetch('/api/gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'generate-script',
-              tema: gatilho.tema,
-              tipoConteudo: gatilho.tipoConteudo,
-              gatilhos: gatilho.gatilhosEmocionais,
-              duracao: gatilho.duracao,
-              observacoes: gatilho.observacoesEspeciais,
-              titulo: firstTitle.titulo,
-              goldenHook: firstTitle.goldenHook,
-              diretrizes,
-            }),
-          })
+        // PRODUCTION MODE: Real API call only - NO fallback to mock data
+        const response = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate-script',
+            tema: gatilho.tema,
+            tipoConteudo: gatilho.tipoConteudo,
+            gatilhos: gatilho.gatilhosEmocionais,
+            duracao: gatilho.duracao,
+            observacoes: gatilho.observacoesEspeciais,
+            titulo: firstTitle.titulo,
+            goldenHook: firstTitle.goldenHook,
+            diretrizes,
+          }),
+        })
 
-          if (response.ok) {
-            const data = await response.json()
-            roteiro = data.script || getMockRoteiro(gatilho.tema, firstTitle.titulo, firstTitle.goldenHook)
-          } else {
-            throw new Error('API Error')
-          }
-        } catch {
-          roteiro = getMockRoteiro(gatilho.tema, firstTitle.titulo, firstTitle.goldenHook)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || errorData.message || 'Falha ao regenerar roteiro')
         }
+
+        const data = await response.json()
+
+        if (!data.script) {
+          throw new Error('Resposta incompleta da API. Campo obrigatório: script')
+        }
+
+        roteiro = data.script
         addToast({ type: 'success', message: 'Roteiro regenerado!' })
       }
 

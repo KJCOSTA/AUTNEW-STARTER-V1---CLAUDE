@@ -208,14 +208,19 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
       })
     }
 
-    // Fallback if still no scenes
+    // Fallback if still no scenes - show error in production
     if (scenes.length === 0) {
-      const mockCenas = getMockCenas(script)
-      setEstudio({ cenas: mockCenas })
+      addToast({
+        type: 'error',
+        message: 'Não foi possível extrair cenas do roteiro. Verifique o formato.',
+      })
+      // Set empty scenes array to avoid infinite loop
+      setEstudio({ cenas: [] })
       return
     }
 
     setEstudio({ cenas: scenes })
+    addToast({ type: 'success', message: `${scenes.length} cenas extraídas do roteiro!` })
   }
 
   const getVisualSuggestion = (title: string, content: string): string => {
