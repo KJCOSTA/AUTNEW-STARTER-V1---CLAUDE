@@ -1,5 +1,4 @@
 import { forwardRef, ButtonHTMLAttributes } from 'react'
-import { motion } from 'framer-motion'
 import clsx from 'clsx'
 import { Loader2 } from 'lucide-react'
 
@@ -25,7 +24,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+      'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]'
 
     const variants = {
       primary: 'btn-gradient text-white',
@@ -43,10 +42,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     }
 
     return (
-      <motion.button
+      <button
         ref={ref}
-        whileHover={{ scale: disabled || loading ? 1 : 1.02 }}
-        whileTap={{ scale: disabled || loading ? 1 : 0.98 }}
         className={clsx(baseStyles, variants[variant], sizes[size], className)}
         disabled={disabled || loading}
         {...props}
@@ -57,7 +54,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           icon
         ) : null}
         {children}
-      </motion.button>
+      </button>
     )
   }
 )

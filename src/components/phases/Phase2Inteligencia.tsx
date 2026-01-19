@@ -27,7 +27,7 @@ interface ProcessStep {
 }
 
 export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) {
-  const { gatilho, setInteligencia, diretrizes, addToast } = useStore()
+  const { gatilho, setInteligencia, addToast } = useStore()
   const [steps, setSteps] = useState<ProcessStep[]>([
     {
       id: 'deep-research',
@@ -233,7 +233,7 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
 
       {/* Processing Steps */}
       <div className="space-y-4">
-        {steps.map((step, index) => {
+        {steps.map((step) => {
           const Icon = step.icon
           return (
             <Card key={step.id} variant={step.status === 'processing' ? 'gradient' : 'default'}>

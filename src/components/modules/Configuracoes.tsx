@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import {
   Settings,
   Key,
@@ -9,7 +8,6 @@ import {
   Eye,
   EyeOff,
   CheckCircle,
-  XCircle,
   ExternalLink,
   Save,
 } from 'lucide-react'

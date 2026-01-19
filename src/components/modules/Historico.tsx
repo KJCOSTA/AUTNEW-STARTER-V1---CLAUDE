@@ -9,7 +9,6 @@ import {
   Eye,
   Download,
   Calendar,
-  Film,
   Image,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'

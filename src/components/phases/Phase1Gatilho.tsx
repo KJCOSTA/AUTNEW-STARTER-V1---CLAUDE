@@ -12,7 +12,6 @@ import {
   Clock,
   Tag,
   ExternalLink,
-  Loader2,
   User,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'

@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Film,
-  Play,
   Image,
   Volume2,
   Upload,
   RefreshCw,
   Clock,
-  Loader2,
   Check,
   Video,
 } from 'lucide-react'
