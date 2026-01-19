@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap,
@@ -17,6 +17,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -69,8 +70,60 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
   const { gatilho, setGatilho, addToast, canal, configuracoes } = useStore()
   const [extractingId, setExtractingId] = useState<string | null>(null)
   const [expandedConcorrente, setExpandedConcorrente] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const isTestMode = configuracoes.appMode === 'test'
+
+  // Handle CSV/XLS file upload for competitor data
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const validTypes = ['.csv', '.xls', '.xlsx']
+    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+
+    if (!validTypes.includes(fileExt)) {
+      addToast({ type: 'error', message: 'Formato inválido. Use CSV ou XLS/XLSX.' })
+      return
+    }
+
+    addToast({ type: 'info', message: `Processando ${file.name}...` })
+
+    // In real implementation, parse the file and extract competitor data
+    // For now, simulate processing and add mock data
+    setTimeout(() => {
+      const mockConcorrente: ConcorrenteData = {
+        id: Date.now().toString(),
+        link: '',
+        transcricao: `Dados importados de ${file.name}`,
+        metadados: {
+          videoId: 'imported',
+          titulo: `Dados de ${file.name}`,
+          canal: 'Importado via planilha',
+          inscritos: '0',
+          views: 0,
+          likes: 0,
+          comentarios: 0,
+          dataPublicacao: new Date().toISOString(),
+          diasDecorridos: 0,
+          duracao: '0:00',
+          tags: [],
+          descricao: 'Dados importados de planilha CSV/XLS',
+          thumbnailUrl: '',
+        },
+      }
+      setGatilho({
+        concorrentes: [...gatilho.concorrentes, mockConcorrente],
+      })
+      setExpandedConcorrente(mockConcorrente.id)
+      addToast({ type: 'success', message: 'Dados importados com sucesso!' })
+    }, 1500)
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
 
   const handleTriggerToggle = (trigger: EmotionalTrigger) => {
     const current = gatilho.gatilhosEmocionais
@@ -247,14 +300,31 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
                 </CardDescription>
               </div>
             </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={addConcorrente}
-              icon={<Plus className="w-4 h-4" />}
-            >
-              Adicionar
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                icon={<FileSpreadsheet className="w-4 h-4" />}
+              >
+                Importar Planilha
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={addConcorrente}
+                icon={<Plus className="w-4 h-4" />}
+              >
+                Adicionar
+              </Button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xls,.xlsx"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -264,14 +334,24 @@ export function Phase1Gatilho({ onNext }: Phase1GatilhoProps) {
               <p className="text-text-secondary mb-3">
                 Nenhum concorrente adicionado ainda
               </p>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={addConcorrente}
-                icon={<Plus className="w-4 h-4" />}
-              >
-                Adicionar Concorrente
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  icon={<FileSpreadsheet className="w-4 h-4" />}
+                >
+                  Importar Planilha
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={addConcorrente}
+                  icon={<Plus className="w-4 h-4" />}
+                >
+                  Via YouTube
+                </Button>
+              </div>
             </div>
           ) : (
             <AnimatePresence mode="popLayout">
