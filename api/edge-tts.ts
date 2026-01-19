@@ -19,7 +19,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { text, voice = 'francisca', rate = '-5%', pitch = '+0Hz' } = req.body as TTSRequest
+  const { action, text, voice = 'francisca', rate = '-5%', pitch = '+0Hz' } = req.body as TTSRequest & { action?: string }
+
+  // Handle test-connection action
+  if (action === 'test' || action === 'test-connection') {
+    const speechKey = process.env.AZURE_SPEECH_KEY
+    if (speechKey) {
+      try {
+        const speechRegion = process.env.AZURE_SPEECH_REGION || 'eastus'
+        const response = await fetch(
+          `https://${speechRegion}.api.cognitive.microsoft.com/sts/v1.0/issueToken`,
+          {
+            method: 'POST',
+            headers: {
+              'Ocp-Apim-Subscription-Key': speechKey,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          }
+        )
+        if (response.ok) {
+          return res.status(200).json({ success: true, connected: true, message: 'Edge TTS (Azure) conectado!' })
+        } else {
+          return res.status(400).json({ success: false, connected: false, message: 'Erro na conexão com Azure Speech' })
+        }
+      } catch {
+        return res.status(400).json({ success: false, connected: false, message: 'Erro de rede com Azure Speech' })
+      }
+    } else {
+      return res.status(200).json({ success: false, connected: false, needsConfiguration: true, message: 'Azure Speech Key não configurada' })
+    }
+  }
 
   if (!text || text.trim().length === 0) {
     return res.status(400).json({ error: 'Text is required' })

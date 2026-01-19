@@ -21,11 +21,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { action, text, voice = 'portuguese-female' } = req.body
 
   try {
-    if (action === 'test') {
+    if (action === 'test' || action === 'test-connection') {
       const response = await fetch(`${ELEVENLABS_API_URL}/user`, {
         headers: { 'xi-api-key': apiKey },
       })
-      return res.status(response.ok ? 200 : 400).json({ ok: response.ok })
+      if (response.ok) {
+        return res.status(200).json({ success: true, connected: true, message: 'ElevenLabs conectado!' })
+      } else {
+        return res.status(400).json({ success: false, connected: false, message: 'Erro na conexão com ElevenLabs' })
+      }
     }
 
     // Generate speech
