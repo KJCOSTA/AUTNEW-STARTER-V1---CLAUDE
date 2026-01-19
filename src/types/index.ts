@@ -34,12 +34,21 @@ export type EmotionalTrigger =
   | 'sabedoria'
 
 // Phase 1: Gatilho (Trigger) Input Data
+export interface ConcorrenteData {
+  id: string
+  link: string
+  transcricao: string
+  metadados: YouTubeMetadata | null
+}
+
 export interface GatilhoData {
   tema: string
   tipoConteudo: ContentType
   duracao: DurationType
   gatilhosEmocionais: EmotionalTrigger[]
   observacoesEspeciais: string
+  concorrentes: ConcorrenteData[]
+  // Deprecated - keeping for backwards compatibility
   concorrenteLink: string
   concorrenteTranscricao: string
   concorrenteMetadados: YouTubeMetadata | null
@@ -162,7 +171,7 @@ export interface Producao {
 }
 
 // Guidelines Module
-export interface Diretrizes {
+export interface DiretrizesContent {
   listaNegra: string[]
   estiloVisual: {
     fontes: string
@@ -184,6 +193,17 @@ export interface Diretrizes {
     ctaFinal: string
   }
 }
+
+export interface DiretrizPerfil {
+  id: string
+  nome: string
+  descricao: string
+  criadoEm: string
+  conteudo: DiretrizesContent
+}
+
+// Backward compatibility alias
+export type Diretrizes = DiretrizesContent
 
 // API Status
 export type APIStatus = 'online' | 'warning' | 'offline' | 'unknown'
@@ -245,13 +265,24 @@ export interface AppState {
   entrega: EntregaData | null
   setEntrega: (data: EntregaData) => void
 
-  // Canal data
+  // Canal data - multiple channels support
   canal: CanalData
   setCanal: (data: Partial<CanalData>) => void
+  canais: CanalData[]
+  canalAtivo: string | null
+  addCanal: (canal: CanalData) => void
+  removeCanal: (nome: string) => void
+  setActiveCanal: (nome: string) => void
 
-  // Guidelines
+  // Guidelines - multiple profiles support
   diretrizes: Diretrizes
   setDiretrizes: (data: Partial<Diretrizes>) => void
+  diretrizPerfis: DiretrizPerfil[]
+  diretrizAtiva: string | null
+  addDiretrizPerfil: (perfil: DiretrizPerfil) => void
+  removeDiretrizPerfil: (id: string) => void
+  setActiveDiretriz: (id: string) => void
+  updateDiretrizPerfil: (id: string, data: Partial<DiretrizPerfil>) => void
 
   // Settings
   configuracoes: Configuracoes
