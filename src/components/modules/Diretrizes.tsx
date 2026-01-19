@@ -22,6 +22,9 @@ import {
   Type,
   ToggleLeft,
   ToggleRight,
+  Sparkles,
+  BookOpen,
+  ChevronRight,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import {
@@ -75,7 +78,19 @@ export function Diretrizes() {
     acoes: [] as DiretrizAcaoTipo[],
   })
 
+  // Collapse states for sections
+  const [expandedSections, setExpandedSections] = useState({
+    listaNegra: true,
+    estiloVisual: false,
+    ctas: false,
+    arquitetura: false,
+  })
+
   const activePerfil = diretrizPerfis.find((p) => p.id === diretrizAtiva)
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
+  }
 
   // Custom diretriz handlers
   const handleAddDiretriz = () => {
@@ -223,16 +238,19 @@ export function Diretrizes() {
     addToast({ type: 'info', message: 'Perfil excluído' })
   }
 
+  const diretrizCount = diretrizes.diretrizesCustomizadas?.length || 0
+  const activeCount = diretrizes.diretrizesCustomizadas?.filter((d) => d.ativa).length || 0
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      {/* Header with Title and Primary Actions */}
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-accent flex items-center justify-center">
-            <FileText className="w-5 h-5 text-white" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-accent flex items-center justify-center shadow-lg shadow-accent-purple/20">
+            <BookOpen className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-text-primary">Diretrizes do Canal</h1>
+            <h1 className="text-2xl font-bold text-text-primary">Diretrizes do Canal</h1>
             <p className="text-sm text-text-secondary">
               Regras que a IA seguirá em todas as gerações
             </p>
@@ -248,16 +266,16 @@ export function Diretrizes() {
         </div>
       </div>
 
-      {/* Profile Selector */}
-      <Card>
-        <CardContent className="py-4">
+      {/* Profile Selector - Compact */}
+      <Card className="overflow-visible">
+        <CardContent className="py-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3 flex-1 min-w-[200px]">
-              <span className="text-sm text-text-secondary">Perfil ativo:</span>
+              <span className="text-sm text-text-secondary">Perfil:</span>
               <div className="relative">
                 <button
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors min-w-[200px]"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors min-w-[180px]"
                 >
                   <span className="text-sm font-medium text-text-primary flex-1 text-left">
                     {activePerfil?.nome || 'Selecionar'}
@@ -326,7 +344,7 @@ export function Diretrizes() {
 
             <div className="flex gap-2">
               <Button
-                variant="secondary"
+                variant="ghost"
                 size="sm"
                 onClick={handleDuplicateProfile}
                 icon={<Copy className="w-4 h-4" />}
@@ -334,6 +352,7 @@ export function Diretrizes() {
                 Duplicar
               </Button>
               <Button
+                variant="secondary"
                 size="sm"
                 onClick={() => setShowCreateModal(true)}
                 icon={<Plus className="w-4 h-4" />}
@@ -345,356 +364,61 @@ export function Diretrizes() {
         </CardContent>
       </Card>
 
-      {/* Create Profile Modal */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowCreateModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="text-lg font-bold text-text-primary mb-4">Criar Novo Perfil</h2>
-              <div className="space-y-4">
-                <Input
-                  label="Nome do Perfil"
-                  placeholder="Ex: Canal Secundário"
-                  value={newPerfilName}
-                  onChange={(e) => setNewPerfilName(e.target.value)}
-                />
-                <Textarea
-                  label="Descrição (opcional)"
-                  placeholder="Ex: Diretrizes para o canal de meditação"
-                  value={newPerfilDesc}
-                  onChange={(e) => setNewPerfilDesc(e.target.value)}
-                  rows={2}
-                />
-                <p className="text-xs text-text-secondary">
-                  O novo perfil será criado com base nas diretrizes atuais.
-                </p>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="ghost" onClick={() => setShowCreateModal(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleCreateProfile} icon={<Plus className="w-4 h-4" />}>
-                  Criar Perfil
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Blacklist */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Ban className="w-5 h-5 text-status-error" />
-            <div>
-              <CardTitle>Lista Negra</CardTitle>
-              <CardDescription>
-                Palavras e expressões que nunca devem aparecer nos conteúdos
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Digite uma palavra..."
-              value={newWord}
-              onChange={(e) => setNewWord(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addToBlacklist()}
-              className="flex-1"
-            />
-            <Button onClick={addToBlacklist} icon={<Plus className="w-4 h-4" />}>
-              Adicionar
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {diretrizes.listaNegra.map((word) => (
-              <motion.span
-                key={word}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-status-error/10 border border-status-error/30 rounded-lg text-sm text-status-error"
-              >
-                {word}
-                <button
-                  onClick={() => removeFromBlacklist(word)}
-                  className="hover:bg-white/10 rounded p-0.5"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </motion.span>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Visual Style */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Palette className="w-5 h-5 text-accent-purple" />
-            <div>
-              <CardTitle>Estilo Visual</CardTitle>
-              <CardDescription>
-                Regras para thumbnails e imagens geradas
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            label="Fontes"
-            value={diretrizes.estiloVisual.fontes}
-            onChange={(e) =>
-              setDiretrizes({
-                estiloVisual: { ...diretrizes.estiloVisual, fontes: e.target.value },
-              })
-            }
-          />
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              Paleta de Cores
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {diretrizes.estiloVisual.paletaCores.map((color, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1.5 bg-white/5 rounded-lg text-sm text-text-secondary"
-                >
-                  {color}
-                </span>
-              ))}
-            </div>
-          </div>
-          <Input
-            label="Imagens Preferidas"
-            value={diretrizes.estiloVisual.imagensPreferidas}
-            onChange={(e) =>
-              setDiretrizes({
-                estiloVisual: {
-                  ...diretrizes.estiloVisual,
-                  imagensPreferidas: e.target.value,
-                },
-              })
-            }
-          />
-          <Input
-            label="Regras de Texto"
-            value={diretrizes.estiloVisual.regrasTexto}
-            onChange={(e) =>
-              setDiretrizes({
-                estiloVisual: {
-                  ...diretrizes.estiloVisual,
-                  regrasTexto: e.target.value,
-                },
-              })
-            }
-          />
-        </CardContent>
-      </Card>
-
-      {/* CTAs */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <MessageSquare className="w-5 h-5 text-status-success" />
-            <div>
-              <CardTitle>CTAs Obrigatórios</CardTitle>
-              <CardDescription>
-                Chamadas para ação inseridas automaticamente
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            label="Abertura"
-            value={diretrizes.ctasObrigatorios.abertura}
-            onChange={(e) =>
-              setDiretrizes({
-                ctasObrigatorios: {
-                  ...diretrizes.ctasObrigatorios,
-                  abertura: e.target.value,
-                },
-              })
-            }
-            rows={2}
-          />
-          <Textarea
-            label="Meio (E-book)"
-            value={diretrizes.ctasObrigatorios.meio}
-            onChange={(e) =>
-              setDiretrizes({
-                ctasObrigatorios: {
-                  ...diretrizes.ctasObrigatorios,
-                  meio: e.target.value,
-                },
-              })
-            }
-            rows={2}
-          />
-          <Textarea
-            label="Fechamento (Grupo VIP)"
-            value={diretrizes.ctasObrigatorios.fechamento}
-            onChange={(e) =>
-              setDiretrizes({
-                ctasObrigatorios: {
-                  ...diretrizes.ctasObrigatorios,
-                  fechamento: e.target.value,
-                },
-              })
-            }
-            rows={2}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Script Architecture */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Layout className="w-5 h-5 text-accent-blue" />
-            <div>
-              <CardTitle>Arquitetura do Roteiro</CardTitle>
-              <CardDescription>Estrutura padrão para todos os roteiros</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Abertura Magnética"
-              value={diretrizes.arquiteturaRoteiro.aberturaMagnetica}
-              onChange={(e) =>
-                setDiretrizes({
-                  arquiteturaRoteiro: {
-                    ...diretrizes.arquiteturaRoteiro,
-                    aberturaMagnetica: e.target.value,
-                  },
-                })
-              }
-            />
-            <Input
-              label="Gancho Emocional"
-              value={diretrizes.arquiteturaRoteiro.ganchoEmocional}
-              onChange={(e) =>
-                setDiretrizes({
-                  arquiteturaRoteiro: {
-                    ...diretrizes.arquiteturaRoteiro,
-                    ganchoEmocional: e.target.value,
-                  },
-                })
-              }
-            />
-            <Input
-              label="Desenvolvimento"
-              value={diretrizes.arquiteturaRoteiro.desenvolvimento}
-              onChange={(e) =>
-                setDiretrizes({
-                  arquiteturaRoteiro: {
-                    ...diretrizes.arquiteturaRoteiro,
-                    desenvolvimento: e.target.value,
-                  },
-                })
-              }
-            />
-            <Input
-              label="CTA do Meio"
-              value={diretrizes.arquiteturaRoteiro.ctaMeio}
-              onChange={(e) =>
-                setDiretrizes({
-                  arquiteturaRoteiro: {
-                    ...diretrizes.arquiteturaRoteiro,
-                    ctaMeio: e.target.value,
-                  },
-                })
-              }
-            />
-            <Input
-              label="Fechamento"
-              value={diretrizes.arquiteturaRoteiro.fechamento}
-              onChange={(e) =>
-                setDiretrizes({
-                  arquiteturaRoteiro: {
-                    ...diretrizes.arquiteturaRoteiro,
-                    fechamento: e.target.value,
-                  },
-                })
-              }
-            />
-            <Input
-              label="CTA Final"
-              value={diretrizes.arquiteturaRoteiro.ctaFinal}
-              onChange={(e) =>
-                setDiretrizes({
-                  arquiteturaRoteiro: {
-                    ...diretrizes.arquiteturaRoteiro,
-                    ctaFinal: e.target.value,
-                  },
-                })
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Custom Diretrizes per Action */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+      {/* ==================== DIRETRIZES CUSTOMIZADAS - SEÇÃO PRINCIPAL ==================== */}
+      <Card className="border-accent-purple/30 bg-gradient-to-br from-accent-purple/5 to-transparent">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <Zap className="w-5 h-5 text-status-warning" />
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
               <div>
-                <CardTitle>Diretrizes por Ação</CardTitle>
+                <CardTitle className="text-lg">Diretrizes Personalizadas</CardTitle>
                 <CardDescription>
-                  Regras específicas para cada tipo de ação (roteiro, thumbnail, etc.)
+                  {diretrizCount > 0
+                    ? `${activeCount} de ${diretrizCount} diretriz(es) ativa(s)`
+                    : 'Crie regras específicas para cada tipo de ação'}
                 </CardDescription>
               </div>
             </div>
+            {/* BOTÃO PRINCIPAL - NOVA DIRETRIZ */}
             <Button
-              size="sm"
               onClick={() => setShowDiretrizModal(true)}
               icon={<Plus className="w-4 h-4" />}
+              className="bg-gradient-to-r from-accent-purple to-accent-blue hover:opacity-90 shadow-lg shadow-accent-purple/20"
             >
               Nova Diretriz
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {(!diretrizes.diretrizesCustomizadas || diretrizes.diretrizesCustomizadas.length === 0) ? (
-            <div className="text-center py-8">
-              <Settings2 className="w-12 h-12 text-text-secondary/30 mx-auto mb-3" />
-              <p className="text-text-secondary text-sm">
-                Nenhuma diretriz personalizada ainda
+          {diretrizCount === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-8 px-4"
+            >
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-8 h-8 text-text-secondary/40" />
+              </div>
+              <p className="text-text-primary font-medium mb-1">
+                Nenhuma diretriz personalizada
               </p>
-              <p className="text-text-secondary/70 text-xs mt-1">
-                Clique em "Nova Diretriz" para criar regras específicas por ação
+              <p className="text-text-secondary text-sm max-w-md mx-auto">
+                Clique em "Nova Diretriz" acima para criar regras específicas para roteiros, thumbnails, narração e mais.
               </p>
-            </div>
+            </motion.div>
           ) : (
             <div className="space-y-3">
-              {diretrizes.diretrizesCustomizadas.map((diretriz) => (
+              {diretrizes.diretrizesCustomizadas?.map((diretriz, index) => (
                 <motion.div
                   key={diretriz.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                   className={`p-4 rounded-xl border transition-all ${
                     diretriz.ativa
-                      ? 'bg-white/5 border-white/10'
+                      ? 'bg-white/5 border-white/10 hover:border-white/20'
                       : 'bg-white/2 border-white/5 opacity-60'
                   }`}
                 >
@@ -707,6 +431,7 @@ export function Diretrizes() {
                         <button
                           onClick={() => handleToggleDiretriz(diretriz.id)}
                           className="flex-shrink-0"
+                          title={diretriz.ativa ? 'Desativar' : 'Ativar'}
                         >
                           {diretriz.ativa ? (
                             <ToggleRight className="w-6 h-6 text-status-success" />
@@ -743,13 +468,15 @@ export function Diretrizes() {
                     <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => setEditingDiretriz(diretriz)}
-                        className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
+                        className="p-2 hover:bg-white/10 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
+                        title="Editar"
                       >
                         <Settings2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteDiretriz(diretriz.id)}
-                        className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
+                        className="p-2 hover:bg-white/10 rounded-lg text-text-secondary hover:text-status-error transition-colors"
+                        title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -762,6 +489,418 @@ export function Diretrizes() {
         </CardContent>
       </Card>
 
+      {/* ==================== SEÇÕES COLAPSÁVEIS ==================== */}
+
+      {/* Blacklist - Collapsible */}
+      <Card>
+        <button
+          onClick={() => toggleSection('listaNegra')}
+          className="w-full"
+        >
+          <CardHeader className="hover:bg-white/2 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Ban className="w-5 h-5 text-status-error" />
+                <div className="text-left">
+                  <CardTitle>Lista Negra</CardTitle>
+                  <CardDescription>
+                    {diretrizes.listaNegra.length} palavra(s) bloqueada(s)
+                  </CardDescription>
+                </div>
+              </div>
+              <ChevronRight
+                className={`w-5 h-5 text-text-secondary transition-transform ${
+                  expandedSections.listaNegra ? 'rotate-90' : ''
+                }`}
+              />
+            </div>
+          </CardHeader>
+        </button>
+        <AnimatePresence>
+          {expandedSections.listaNegra && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <CardContent className="pt-0 space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Digite uma palavra..."
+                    value={newWord}
+                    onChange={(e) => setNewWord(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addToBlacklist()}
+                    className="flex-1"
+                  />
+                  <Button onClick={addToBlacklist} icon={<Plus className="w-4 h-4" />}>
+                    Adicionar
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {diretrizes.listaNegra.map((word) => (
+                    <motion.span
+                      key={word}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-status-error/10 border border-status-error/30 rounded-lg text-sm text-status-error"
+                    >
+                      {word}
+                      <button
+                        onClick={() => removeFromBlacklist(word)}
+                        className="hover:bg-white/10 rounded p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </motion.span>
+                  ))}
+                  {diretrizes.listaNegra.length === 0 && (
+                    <p className="text-sm text-text-secondary">Nenhuma palavra na lista negra</p>
+                  )}
+                </div>
+              </CardContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Card>
+
+      {/* Visual Style - Collapsible */}
+      <Card>
+        <button
+          onClick={() => toggleSection('estiloVisual')}
+          className="w-full"
+        >
+          <CardHeader className="hover:bg-white/2 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Palette className="w-5 h-5 text-accent-purple" />
+                <div className="text-left">
+                  <CardTitle>Estilo Visual</CardTitle>
+                  <CardDescription>
+                    Regras para thumbnails e imagens
+                  </CardDescription>
+                </div>
+              </div>
+              <ChevronRight
+                className={`w-5 h-5 text-text-secondary transition-transform ${
+                  expandedSections.estiloVisual ? 'rotate-90' : ''
+                }`}
+              />
+            </div>
+          </CardHeader>
+        </button>
+        <AnimatePresence>
+          {expandedSections.estiloVisual && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <CardContent className="pt-0 space-y-4">
+                <Input
+                  label="Fontes"
+                  value={diretrizes.estiloVisual.fontes}
+                  onChange={(e) =>
+                    setDiretrizes({
+                      estiloVisual: { ...diretrizes.estiloVisual, fontes: e.target.value },
+                    })
+                  }
+                />
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Paleta de Cores
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {diretrizes.estiloVisual.paletaCores.map((color, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1.5 bg-white/5 rounded-lg text-sm text-text-secondary"
+                      >
+                        {color}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <Input
+                  label="Imagens Preferidas"
+                  value={diretrizes.estiloVisual.imagensPreferidas}
+                  onChange={(e) =>
+                    setDiretrizes({
+                      estiloVisual: {
+                        ...diretrizes.estiloVisual,
+                        imagensPreferidas: e.target.value,
+                      },
+                    })
+                  }
+                />
+                <Input
+                  label="Regras de Texto"
+                  value={diretrizes.estiloVisual.regrasTexto}
+                  onChange={(e) =>
+                    setDiretrizes({
+                      estiloVisual: {
+                        ...diretrizes.estiloVisual,
+                        regrasTexto: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </CardContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Card>
+
+      {/* CTAs - Collapsible */}
+      <Card>
+        <button
+          onClick={() => toggleSection('ctas')}
+          className="w-full"
+        >
+          <CardHeader className="hover:bg-white/2 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-5 h-5 text-status-success" />
+                <div className="text-left">
+                  <CardTitle>CTAs Obrigatórios</CardTitle>
+                  <CardDescription>
+                    Chamadas para ação automáticas
+                  </CardDescription>
+                </div>
+              </div>
+              <ChevronRight
+                className={`w-5 h-5 text-text-secondary transition-transform ${
+                  expandedSections.ctas ? 'rotate-90' : ''
+                }`}
+              />
+            </div>
+          </CardHeader>
+        </button>
+        <AnimatePresence>
+          {expandedSections.ctas && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <CardContent className="pt-0 space-y-4">
+                <Textarea
+                  label="Abertura"
+                  value={diretrizes.ctasObrigatorios.abertura}
+                  onChange={(e) =>
+                    setDiretrizes({
+                      ctasObrigatorios: {
+                        ...diretrizes.ctasObrigatorios,
+                        abertura: e.target.value,
+                      },
+                    })
+                  }
+                  rows={2}
+                />
+                <Textarea
+                  label="Meio (E-book)"
+                  value={diretrizes.ctasObrigatorios.meio}
+                  onChange={(e) =>
+                    setDiretrizes({
+                      ctasObrigatorios: {
+                        ...diretrizes.ctasObrigatorios,
+                        meio: e.target.value,
+                      },
+                    })
+                  }
+                  rows={2}
+                />
+                <Textarea
+                  label="Fechamento (Grupo VIP)"
+                  value={diretrizes.ctasObrigatorios.fechamento}
+                  onChange={(e) =>
+                    setDiretrizes({
+                      ctasObrigatorios: {
+                        ...diretrizes.ctasObrigatorios,
+                        fechamento: e.target.value,
+                      },
+                    })
+                  }
+                  rows={2}
+                />
+              </CardContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Card>
+
+      {/* Script Architecture - Collapsible */}
+      <Card>
+        <button
+          onClick={() => toggleSection('arquitetura')}
+          className="w-full"
+        >
+          <CardHeader className="hover:bg-white/2 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Layout className="w-5 h-5 text-accent-blue" />
+                <div className="text-left">
+                  <CardTitle>Arquitetura do Roteiro</CardTitle>
+                  <CardDescription>
+                    Estrutura padrão para roteiros
+                  </CardDescription>
+                </div>
+              </div>
+              <ChevronRight
+                className={`w-5 h-5 text-text-secondary transition-transform ${
+                  expandedSections.arquitetura ? 'rotate-90' : ''
+                }`}
+              />
+            </div>
+          </CardHeader>
+        </button>
+        <AnimatePresence>
+          {expandedSections.arquitetura && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <CardContent className="pt-0 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Abertura Magnética"
+                    value={diretrizes.arquiteturaRoteiro.aberturaMagnetica}
+                    onChange={(e) =>
+                      setDiretrizes({
+                        arquiteturaRoteiro: {
+                          ...diretrizes.arquiteturaRoteiro,
+                          aberturaMagnetica: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <Input
+                    label="Gancho Emocional"
+                    value={diretrizes.arquiteturaRoteiro.ganchoEmocional}
+                    onChange={(e) =>
+                      setDiretrizes({
+                        arquiteturaRoteiro: {
+                          ...diretrizes.arquiteturaRoteiro,
+                          ganchoEmocional: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <Input
+                    label="Desenvolvimento"
+                    value={diretrizes.arquiteturaRoteiro.desenvolvimento}
+                    onChange={(e) =>
+                      setDiretrizes({
+                        arquiteturaRoteiro: {
+                          ...diretrizes.arquiteturaRoteiro,
+                          desenvolvimento: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <Input
+                    label="CTA do Meio"
+                    value={diretrizes.arquiteturaRoteiro.ctaMeio}
+                    onChange={(e) =>
+                      setDiretrizes({
+                        arquiteturaRoteiro: {
+                          ...diretrizes.arquiteturaRoteiro,
+                          ctaMeio: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <Input
+                    label="Fechamento"
+                    value={diretrizes.arquiteturaRoteiro.fechamento}
+                    onChange={(e) =>
+                      setDiretrizes({
+                        arquiteturaRoteiro: {
+                          ...diretrizes.arquiteturaRoteiro,
+                          fechamento: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <Input
+                    label="CTA Final"
+                    value={diretrizes.arquiteturaRoteiro.ctaFinal}
+                    onChange={(e) =>
+                      setDiretrizes({
+                        arquiteturaRoteiro: {
+                          ...diretrizes.arquiteturaRoteiro,
+                          ctaFinal: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+              </CardContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Card>
+
+      {/* ==================== MODAIS ==================== */}
+
+      {/* Create Profile Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-bold text-text-primary mb-4">Criar Novo Perfil</h2>
+              <div className="space-y-4">
+                <Input
+                  label="Nome do Perfil"
+                  placeholder="Ex: Canal Secundário"
+                  value={newPerfilName}
+                  onChange={(e) => setNewPerfilName(e.target.value)}
+                />
+                <Textarea
+                  label="Descrição (opcional)"
+                  placeholder="Ex: Diretrizes para o canal de meditação"
+                  value={newPerfilDesc}
+                  onChange={(e) => setNewPerfilDesc(e.target.value)}
+                  rows={2}
+                />
+                <p className="text-xs text-text-secondary">
+                  O novo perfil será criado com base nas diretrizes atuais.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="ghost" onClick={() => setShowCreateModal(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleCreateProfile} icon={<Plus className="w-4 h-4" />}>
+                  Criar Perfil
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Create/Edit Custom Diretriz Modal */}
       <AnimatePresence>
         {(showDiretrizModal || editingDiretriz) && (
@@ -769,7 +908,7 @@ export function Diretrizes() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => {
               setShowDiretrizModal(false)
               setEditingDiretriz(null)
@@ -777,15 +916,30 @@ export function Diretrizes() {
             }}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-lg font-bold text-text-primary mb-4">
-                {editingDiretriz ? 'Editar Diretriz' : 'Nova Diretriz'}
-              </h2>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center">
+                  {editingDiretriz ? (
+                    <Settings2 className="w-5 h-5 text-white" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-text-primary">
+                    {editingDiretriz ? 'Editar Diretriz' : 'Nova Diretriz'}
+                  </h2>
+                  <p className="text-sm text-text-secondary">
+                    {editingDiretriz ? 'Modifique os campos abaixo' : 'Defina uma nova regra para a IA'}
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 <Input
                   label="Título"
@@ -857,7 +1011,7 @@ export function Diretrizes() {
                   </p>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-6">
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-white/10">
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -871,6 +1025,7 @@ export function Diretrizes() {
                 <Button
                   onClick={editingDiretriz ? handleUpdateDiretriz : handleAddDiretriz}
                   icon={editingDiretriz ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  className="bg-gradient-to-r from-accent-purple to-accent-blue hover:opacity-90"
                 >
                   {editingDiretriz ? 'Salvar' : 'Criar Diretriz'}
                 </Button>
