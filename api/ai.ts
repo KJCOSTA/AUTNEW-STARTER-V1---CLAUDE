@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 // ============== ANTHROPIC (Claude) ==============
-async function handleAnthropic(req: VercelRequest, res: VercelResponse, action: string, data: any) {
+async function handleAnthropic(_req: VercelRequest, res: VercelResponse, action: string, data: any) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
@@ -257,7 +257,7 @@ Retorne APENAS o roteiro formatado com timestamps.`
 }
 
 // ============== OPENAI ==============
-async function handleOpenAI(req: VercelRequest, res: VercelResponse, action: string, data: any) {
+async function handleOpenAI(_req: VercelRequest, res: VercelResponse, action: string, data: any) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     return res.status(500).json({ error: 'OPENAI_API_KEY not configured' })
@@ -305,7 +305,7 @@ async function handleOpenAI(req: VercelRequest, res: VercelResponse, action: str
 }
 
 // ============== GEMINI ==============
-async function handleGemini(req: VercelRequest, res: VercelResponse, action: string, data: any) {
+async function handleGemini(_req: VercelRequest, res: VercelResponse, action: string, data: any) {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
@@ -549,7 +549,7 @@ Retorne APENAS o roteiro formatado com timestamps.`
 }
 
 // ============== GROQ ==============
-async function handleGroq(req: VercelRequest, res: VercelResponse, action: string, data: any) {
+async function handleGroq(_req: VercelRequest, res: VercelResponse, action: string, data: any) {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) {
     return res.status(500).json({

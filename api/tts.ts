@@ -37,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 // ============== EDGE TTS (Azure) ==============
-async function handleEdgeTTS(req: VercelRequest, res: VercelResponse, action: string, data: any) {
+async function handleEdgeTTS(_req: VercelRequest, res: VercelResponse, action: string, data: any) {
   const { text, voice = 'francisca', rate = '-5%', pitch = '+0Hz' } = data
 
   if (action === 'test' || action === 'test-connection') {
@@ -154,7 +154,7 @@ async function handleEdgeTTS(req: VercelRequest, res: VercelResponse, action: st
 }
 
 // ============== ELEVENLABS ==============
-async function handleElevenLabs(req: VercelRequest, res: VercelResponse, action: string, data: any) {
+async function handleElevenLabs(_req: VercelRequest, res: VercelResponse, action: string, data: any) {
   const apiKey = process.env.ELEVENLABS_API_KEY
   if (!apiKey) {
     return res.status(500).json({ error: 'ELEVENLABS_API_KEY not configured' })
