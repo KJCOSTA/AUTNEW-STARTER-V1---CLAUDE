@@ -640,9 +640,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch (error) {
     console.error('Auth API error:', error)
+
+    // Identify database connection errors
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+    const isDbError = errorMessage.includes('POSTGRES') ||
+                      errorMessage.includes('connection') ||
+                      errorMessage.includes('ECONNREFUSED') ||
+                      errorMessage.includes('timeout') ||
+                      errorMessage.includes('ssl') ||
+                      errorMessage.includes('database')
+
+    if (isDbError) {
+      return res.status(503).json({
+        error: 'Erro de conexão com o banco de dados',
+        code: 'DATABASE_CONNECTION_ERROR',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        hint: 'Verifique se POSTGRES_URL está configurado corretamente no Vercel'
+      })
+    }
+
     return res.status(500).json({
       error: 'Erro interno do servidor',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
+      code: 'INTERNAL_ERROR',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
     })
   }
 }

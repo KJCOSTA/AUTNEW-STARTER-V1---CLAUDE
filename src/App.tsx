@@ -23,12 +23,8 @@ function AppContent() {
   const { loading, loadingMessage } = useStore()
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth()
 
-  // TEMPORARY: Check for bypass mode via URL parameter
-  const urlParams = new URLSearchParams(window.location.search)
-  const bypassAuth = urlParams.get('bypass') === 'true'
-
-  // Show loading while checking auth (skip if bypass mode)
-  if (isLoading && !bypassAuth) {
+  // Show loading while checking auth
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-accent-purple" />
@@ -36,13 +32,13 @@ function AppContent() {
     )
   }
 
-  // Show login if not authenticated (skip if bypass mode)
-  if (!isAuthenticated && !bypassAuth) {
+  // Show login if not authenticated
+  if (!isAuthenticated) {
     return <LoginPage />
   }
 
-  // Show change password if first access (skip if bypass mode)
-  if (user?.primeiroAcesso && !bypassAuth) {
+  // Show change password if first access
+  if (user?.primeiroAcesso) {
     return <ChangePasswordPage />
   }
 
@@ -59,8 +55,8 @@ function AppContent() {
       case 'configuracoes':
         return <Configuracoes />
       case 'usuarios':
-        // Only admin can access user management (bypass mode grants admin)
-        return (isAdmin || bypassAuth) ? <GestaoUsuarios /> : <PlanRun />
+        // Only admin can access user management
+        return isAdmin ? <GestaoUsuarios /> : <PlanRun />
       default:
         return <PlanRun />
     }
