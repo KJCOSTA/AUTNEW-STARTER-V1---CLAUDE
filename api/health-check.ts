@@ -40,7 +40,7 @@ const API_CONFIGS = [
     testConfig: {
       endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
       method: 'POST' as const,
-      headers: (key: string) => ({
+      headers: (_key: string) => ({
         'Content-Type': 'application/json',
       }),
       body: {
