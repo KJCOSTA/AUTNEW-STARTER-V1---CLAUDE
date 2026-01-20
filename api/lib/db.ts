@@ -206,9 +206,10 @@ export const sessionDB = {
     ipAddress?: string
     userAgent?: string
   }) {
+    const expiresAtISO = session.expiresAt.toISOString()
     const result = await sql`
       INSERT INTO sessions (user_id, token, expires_at, ip_address, user_agent)
-      VALUES (${session.userId}, ${session.token}, ${session.expiresAt}, ${session.ipAddress || null}, ${session.userAgent || null})
+      VALUES (${session.userId}, ${session.token}, ${expiresAtISO}, ${session.ipAddress || null}, ${session.userAgent || null})
       RETURNING *
     `
     return result.rows[0]
@@ -313,13 +314,14 @@ export const healthCheckDB = {
     criticalFailures: string[]
     success: boolean
   }) {
+    const criticalFailuresArray = `{${entry.criticalFailures.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',')}}`
     await sql`
       INSERT INTO health_check_logs (user_id, results, summary, critical_failures, success)
       VALUES (
         ${entry.userId || null},
         ${JSON.stringify(entry.results)},
         ${JSON.stringify(entry.summary)},
-        ${entry.criticalFailures},
+        ${criticalFailuresArray}::text[],
         ${entry.success}
       )
     `
