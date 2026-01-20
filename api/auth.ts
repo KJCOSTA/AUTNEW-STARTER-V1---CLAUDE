@@ -612,29 +612,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (action) {
       // Auth actions
       case 'login':
-        return handleLogin(req, res)
+        return await handleLogin(req, res)
       case 'logout':
-        return handleLogout(req, res)
+        return await handleLogout(req, res)
       case 'session':
-        return handleSession(req, res)
+        return await handleSession(req, res)
       case 'change-password':
-        return handleChangePassword(req, res)
+        return await handleChangePassword(req, res)
       case 'verify-production':
-        return handleVerifyProductionPassword(req, res)
+        return await handleVerifyProductionPassword(req, res)
       // User management actions
       case 'list':
-        return handleListUsers(req, res)
+        return await handleListUsers(req, res)
       case 'create':
-        return handleCreateUser(req, res)
+        return await handleCreateUser(req, res)
       case 'update':
-        return handleUpdateUser(req, res)
+        return await handleUpdateUser(req, res)
       case 'delete':
-        return handleDeleteUser(req, res)
+        return await handleDeleteUser(req, res)
       case 'reset-password':
-        return handleResetPassword(req, res)
+        return await handleResetPassword(req, res)
       // Logs
       case 'logs':
-        return handleGetLogs(req, res)
+        return await handleGetLogs(req, res)
       default:
         return res.status(400).json({ error: 'Ação inválida' })
     }
