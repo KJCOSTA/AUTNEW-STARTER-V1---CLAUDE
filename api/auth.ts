@@ -4,7 +4,7 @@ import crypto from 'crypto'
 import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db'
 
 // Constants
-const ADMIN_EMAIL = 'kleiton'
+const ADMIN_EMAIL = 'kleiton@autnew.com'
 const ADMIN_NOME = 'Kleiton'
 const ADMIN_INITIAL_PASSWORD = 'jangada'
 const SESSION_DURATION_HOURS = 24
