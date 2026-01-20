@@ -4,6 +4,7 @@ import type {
   AppState,
   PipelinePhase,
   GatilhoData,
+  PlanejamentoData,
   InteligenciaData,
   CriacaoData,
   EstudioData,
@@ -28,6 +29,12 @@ const initialGatilho: GatilhoData = {
   concorrenteLink: '',
   concorrenteTranscricao: '',
   concorrenteMetadados: null,
+}
+
+const initialPlanejamento: PlanejamentoData = {
+  planoPesquisa: '',
+  aprovado: false,
+  planoOriginal: '',
 }
 
 const initialCriacao: CriacaoData = {
@@ -55,6 +62,12 @@ const initialCanal: CanalData = {
 }
 
 const initialDiretrizes: Diretrizes = {
+  secoesAtivas: {
+    listaNegra: true,
+    estiloVisual: true,
+    ctasObrigatorios: true,
+    arquiteturaRoteiro: true,
+  },
   listaNegra: [
     'blindar',
     'escudo',
@@ -167,6 +180,10 @@ export const useStore = create<AppState>()(
       gatilho: initialGatilho,
       setGatilho: (data: Partial<GatilhoData>) =>
         set((state) => ({ gatilho: { ...state.gatilho, ...data } })),
+
+      planejamento: initialPlanejamento,
+      setPlanejamento: (data: Partial<PlanejamentoData>) =>
+        set((state) => ({ planejamento: { ...state.planejamento, ...data } })),
 
       inteligencia: null,
       setInteligencia: (data: InteligenciaData) => set({ inteligencia: data }),
@@ -315,6 +332,7 @@ export const useStore = create<AppState>()(
         set({
           faseAtual: 'gatilho',
           gatilho: initialGatilho,
+          planejamento: initialPlanejamento,
           inteligencia: null,
           criacao: initialCriacao,
           estudio: initialEstudio,

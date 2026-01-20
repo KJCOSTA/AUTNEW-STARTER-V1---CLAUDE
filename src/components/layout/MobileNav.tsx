@@ -33,10 +33,11 @@ const modules: Array<{ id: ModuleName; name: string; icon: typeof Zap; descripti
 
 const phases = [
   { id: 1, name: 'Gatilho', icon: Zap },
-  { id: 2, name: 'Inteligência', icon: Brain },
-  { id: 3, name: 'Criação', icon: Palette },
-  { id: 4, name: 'Estúdio', icon: Film },
-  { id: 5, name: 'Entrega', icon: Upload },
+  { id: 2, name: 'Planejamento', icon: FileText },
+  { id: 3, name: 'Inteligência', icon: Brain },
+  { id: 4, name: 'Criação', icon: Palette },
+  { id: 5, name: 'Estúdio', icon: Film },
+  { id: 6, name: 'Entrega', icon: Upload },
 ]
 
 export function MobileNav({ activeModule, onModuleChange, currentPhase, isProcessing }: MobileNavProps) {
