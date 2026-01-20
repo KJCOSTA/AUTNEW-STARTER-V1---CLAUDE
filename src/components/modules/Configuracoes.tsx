@@ -346,17 +346,24 @@ export function Configuracoes() {
 
     setTesting(keyName)
     try {
-      const endpoints: Record<string, string> = {
-        gemini: '/api/gemini',
-        openai: '/api/openai',
-        elevenlabs: '/api/elevenlabs',
-        json2video: '/api/json2video',
+      const aiProviders = ['gemini', 'openai', 'anthropic', 'groq']
+      const ttsProviders = ['elevenlabs']
+
+      let endpoint = '/api/json2video'
+      let body: Record<string, string> = { action: 'test', apiKey }
+
+      if (aiProviders.includes(keyName)) {
+        endpoint = '/api/ai'
+        body = { provider: keyName, action: 'test', apiKey }
+      } else if (ttsProviders.includes(keyName)) {
+        endpoint = '/api/tts'
+        body = { provider: keyName, action: 'test', apiKey }
       }
 
-      const response = await fetch(endpoints[keyName], {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'test', apiKey }),
+        body: JSON.stringify(body),
       })
 
       addToast({

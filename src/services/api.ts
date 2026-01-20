@@ -71,10 +71,11 @@ export async function analyzeWithGemini(gatilho: GatilhoData): Promise<Inteligen
   }
 
   // Real API call
-  const response = await fetch('/api/gemini', {
+  const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      provider: 'gemini',
       action: 'analyze',
       data: gatilho,
     }),
@@ -101,10 +102,11 @@ export async function generateOptions(
   }
 
   // Real API call
-  const response = await fetch('/api/gemini', {
+  const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      provider: 'gemini',
       action: 'generate-options',
       data: { gatilho, inteligencia },
     }),
@@ -137,10 +139,11 @@ export async function generateScript(
   }
 
   // Real API call
-  const response = await fetch('/api/gemini', {
+  const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      provider: 'gemini',
       action: 'generate-script',
       data: { opcao, gatilho, inteligencia },
     }),
@@ -165,11 +168,12 @@ export async function generateThumbnail(prompt: string): Promise<string> {
   }
 
   // Real API call
-  const response = await fetch('/api/openai', {
+  const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      action: 'generate-image',
+      provider: 'openai',
+      action: 'generate-thumbnail',
       prompt,
     }),
   })
@@ -193,10 +197,11 @@ export async function parseScriptToScenes(roteiro: string): Promise<Cena[]> {
   }
 
   // Real API call
-  const response = await fetch('/api/gemini', {
+  const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      provider: 'gemini',
       action: 'parse-scenes',
       data: { roteiro },
     }),
@@ -220,10 +225,10 @@ export async function generateNarration(texto: string): Promise<string> {
   }
 
   // Real API call
-  const response = await fetch('/api/elevenlabs', {
+  const response = await fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ texto }),
+    body: JSON.stringify({ provider: 'elevenlabs', text: texto }),
   })
 
   if (!response.ok) {
@@ -285,10 +290,11 @@ export async function generateDeliveryPackage(
   }
 
   // Real API call
-  const response = await fetch('/api/gemini', {
+  const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      provider: 'gemini',
       action: 'generate-seo',
       data: { titulo, tema, roteiro },
     }),

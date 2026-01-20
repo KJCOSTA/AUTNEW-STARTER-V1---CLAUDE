@@ -75,10 +75,11 @@ export async function generateEdgeTTS(
 
   try {
     // Call our backend API that wraps edge-tts
-    const response = await fetch('/api/edge-tts', {
+    const response = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        provider: 'edge',
         text,
         voice: options.voice,
         rate: options.rate || '0%',

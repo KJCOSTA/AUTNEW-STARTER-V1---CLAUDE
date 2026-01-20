@@ -432,10 +432,11 @@ export function Phase4Estudio({ onNext, onBack }: Phase4EstudioProps) {
         setEstudio({ cenas: updatedCenas })
         addToast({ type: 'success', message: '[TEST MODE] Áudio simulado gerado!' })
       } else {
-        const response = await fetch('/api/elevenlabs', {
+        const response = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            provider: 'elevenlabs',
             text: scene.texto,
             voice: 'portuguese-female',
           }),

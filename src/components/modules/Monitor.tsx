@@ -158,7 +158,7 @@ export function Monitor() {
   useEffect(() => {
     const fetchServerStatus = async () => {
       try {
-        const response = await fetch('/api/status')
+        const response = await fetch('/api/health-check?action=status')
         if (response.ok) {
           const data = await response.json()
           setServerStatus(data)
@@ -303,32 +303,32 @@ export function Monitor() {
   const testRealAPI = async (apiName: string): Promise<{ success: boolean; message: string; action?: string }> => {
     const apiEndpoints: Record<string, { url: string; body: object }> = {
       Gemini: {
-        url: '/api/gemini',
-        body: { action: 'test-connection' }
+        url: '/api/ai',
+        body: { provider: 'gemini', action: 'test-connection' }
       },
       OpenAI: {
-        url: '/api/openai',
-        body: { action: 'test-connection' }
+        url: '/api/ai',
+        body: { provider: 'openai', action: 'test-connection' }
       },
       Claude: {
-        url: '/api/claude',
-        body: { action: 'test-connection' }
+        url: '/api/ai',
+        body: { provider: 'anthropic', action: 'test-connection' }
       },
       ElevenLabs: {
-        url: '/api/elevenlabs',
-        body: { action: 'test-connection' }
+        url: '/api/tts',
+        body: { provider: 'elevenlabs', action: 'test-connection' }
       },
       'Edge TTS': {
-        url: '/api/edge-tts',
-        body: { action: 'test-connection' }
+        url: '/api/tts',
+        body: { provider: 'edge', action: 'test-connection' }
       },
       JSON2Video: {
         url: '/api/json2video',
         body: { action: 'test-connection' }
       },
       Groq: {
-        url: '/api/groq',
-        body: { action: 'test-connection' }
+        url: '/api/ai',
+        body: { provider: 'groq', action: 'test-connection' }
       },
       Pexels: {
         url: '/api/media',
