@@ -267,6 +267,213 @@ async function handleVerifyProductionPassword(req: VercelRequest, res: VercelRes
 }
 
 // ============================================
+// HANDLERS DE GESTÃO DE USUÁRIOS
+// (consolidado de users.ts para reduzir serverless functions)
+// ============================================
+
+function generateId(): string {
+  return `user-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
+}
+
+function verifyAdmin(token: string): User | null {
+  const sessions = getSessions()
+  const session = sessions.get(token)
+
+  if (!session || new Date(session.expiresAt) < new Date()) {
+    return null
+  }
+
+  const users = getUsers()
+  const user = users.get(session.userId)
+
+  if (!user || user.role !== 'admin') {
+    return null
+  }
+
+  return user
+}
+
+async function handleListUsers(req: VercelRequest, res: VercelResponse) {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token || !verifyAdmin(token)) {
+    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  }
+
+  const users = getUsers()
+  const userList = Array.from(users.values()).map(({ senhaHash, ...user }) => user)
+
+  return res.status(200).json({ success: true, users: userList })
+}
+
+async function handleCreateUser(req: VercelRequest, res: VercelResponse) {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token || !verifyAdmin(token)) {
+    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  }
+
+  const { email, nome, senha, role } = req.body
+
+  if (!email || !nome || !senha || !role) {
+    return res.status(400).json({ error: 'Email, nome, senha e role são obrigatórios' })
+  }
+
+  if (!['admin', 'editor', 'viewer'].includes(role)) {
+    return res.status(400).json({ error: 'Role inválido. Use: admin, editor ou viewer' })
+  }
+
+  if (senha.length < 6) {
+    return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' })
+  }
+
+  const users = getUsers()
+  const existingUser = Array.from(users.values()).find((u) => u.email === email)
+  if (existingUser) {
+    return res.status(409).json({ error: 'Este email já está cadastrado' })
+  }
+
+  const newUser: User = {
+    id: generateId(),
+    email,
+    nome,
+    role,
+    ativo: true,
+    criadoEm: new Date().toISOString(),
+    primeiroAcesso: true,
+    senhaHash: hashPassword(senha),
+  }
+
+  users.set(newUser.id, newUser)
+  const { senhaHash, ...userWithoutPassword } = newUser
+
+  return res.status(201).json({ success: true, user: userWithoutPassword, message: 'Usuário criado com sucesso' })
+}
+
+async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token || !verifyAdmin(token)) {
+    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  }
+
+  const { id, email, nome, role, ativo } = req.body
+
+  if (!id) {
+    return res.status(400).json({ error: 'ID do usuário é obrigatório' })
+  }
+
+  const users = getUsers()
+  const user = users.get(id)
+
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' })
+  }
+
+  const sessions = getSessions()
+  const session = sessions.get(token)
+  if (session?.userId === id && ativo === false) {
+    return res.status(400).json({ error: 'Você não pode desativar sua própria conta' })
+  }
+
+  if (email && email !== user.email) {
+    const existingUser = Array.from(users.values()).find((u) => u.email === email)
+    if (existingUser) {
+      return res.status(409).json({ error: 'Este email já está cadastrado' })
+    }
+    user.email = email
+  }
+
+  if (nome) user.nome = nome
+  if (role && ['admin', 'editor', 'viewer'].includes(role)) user.role = role
+  if (typeof ativo === 'boolean') user.ativo = ativo
+
+  users.set(id, user)
+  const { senhaHash, ...userWithoutPassword } = user
+
+  return res.status(200).json({ success: true, user: userWithoutPassword, message: 'Usuário atualizado com sucesso' })
+}
+
+async function handleDeleteUser(req: VercelRequest, res: VercelResponse) {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token || !verifyAdmin(token)) {
+    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  }
+
+  const { id } = req.body
+
+  if (!id) {
+    return res.status(400).json({ error: 'ID do usuário é obrigatório' })
+  }
+
+  const users = getUsers()
+  const user = users.get(id)
+
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' })
+  }
+
+  const sessions = getSessions()
+  const session = sessions.get(token)
+  if (session?.userId === id) {
+    return res.status(400).json({ error: 'Você não pode deletar sua própria conta' })
+  }
+
+  const admins = Array.from(users.values()).filter((u) => u.role === 'admin')
+  if (user.role === 'admin' && admins.length <= 1) {
+    return res.status(400).json({ error: 'Não é possível deletar o único administrador do sistema' })
+  }
+
+  users.delete(id)
+
+  const allSessions = Array.from(getSessions().entries())
+  allSessions.forEach(([sessionToken, sess]) => {
+    if (sess.userId === id) {
+      getSessions().delete(sessionToken)
+    }
+  })
+
+  return res.status(200).json({ success: true, message: 'Usuário deletado com sucesso' })
+}
+
+async function handleResetPassword(req: VercelRequest, res: VercelResponse) {
+  const authHeader = req.headers.authorization
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token || !verifyAdmin(token)) {
+    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  }
+
+  const { id, novaSenha } = req.body
+
+  if (!id || !novaSenha) {
+    return res.status(400).json({ error: 'ID e nova senha são obrigatórios' })
+  }
+
+  if (novaSenha.length < 6) {
+    return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' })
+  }
+
+  const users = getUsers()
+  const user = users.get(id)
+
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' })
+  }
+
+  user.senhaHash = hashPassword(novaSenha)
+  user.primeiroAcesso = true
+  users.set(id, user)
+
+  return res.status(200).json({ success: true, message: 'Senha resetada com sucesso.' })
+}
+
+// ============================================
 // HANDLER PRINCIPAL
 // ============================================
 
@@ -284,6 +491,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     switch (action) {
+      // Auth actions
       case 'login':
         return handleLogin(req, res)
       case 'logout':
@@ -294,6 +502,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return handleChangePassword(req, res)
       case 'verify-production':
         return handleVerifyProductionPassword(req, res)
+      // User management actions (consolidado de users.ts)
+      case 'list':
+        return handleListUsers(req, res)
+      case 'create':
+        return handleCreateUser(req, res)
+      case 'update':
+        return handleUpdateUser(req, res)
+      case 'delete':
+        return handleDeleteUser(req, res)
+      case 'reset-password':
+        return handleResetPassword(req, res)
       default:
         return res.status(400).json({ error: 'Ação inválida' })
     }

@@ -72,7 +72,7 @@ export function GestaoUsuarios() {
     setError('')
 
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export function GestaoUsuarios() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +136,7 @@ export function GestaoUsuarios() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ export function GestaoUsuarios() {
   // Toggle user active status
   const handleToggleActive = async (user: User) => {
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,7 +206,7 @@ export function GestaoUsuarios() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ export function GestaoUsuarios() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/users', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
