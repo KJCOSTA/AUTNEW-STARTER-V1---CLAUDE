@@ -331,20 +331,20 @@ export function Monitor() {
         body: { action: 'test-connection' }
       },
       Pexels: {
-        url: '/api/pexels',
-        body: { action: 'test-connection' }
+        url: '/api/media',
+        body: { provider: 'pexels', action: 'test-connection' }
       },
       Pixabay: {
-        url: '/api/pixabay',
-        body: { action: 'test-connection' }
+        url: '/api/media',
+        body: { provider: 'pixabay', action: 'test-connection' }
       },
       Unsplash: {
-        url: '/api/unsplash',
-        body: { action: 'test-connection' }
+        url: '/api/media',
+        body: { provider: 'unsplash', action: 'test-connection' }
       },
       YouTube: {
-        url: '/api/youtube/status',
-        body: {}
+        url: '/api/youtube',
+        body: { action: 'status' }
       },
     }
 
