@@ -1,6 +1,20 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import type { User, LoginCredentials } from '../types'
 
+// ============================================
+// BYPASS DE AUTENTICAÇÃO - MODO DESENVOLVIMENTO
+// Mude para false quando o banco estiver funcionando
+// ============================================
+const BYPASS_AUTH = true
+
+const BYPASS_USER: User = {
+  id: 'bypass-admin-001',
+  email: 'kleiton@autnew.com',
+  nome: 'Kleiton (Dev Mode)',
+  role: 'admin',
+  primeiroAcesso: false,
+}
+
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
@@ -18,11 +32,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 const TOKEN_KEY = 'autnew_auth_token'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  // Se BYPASS_AUTH está ativo, já inicia logado
+  const [user, setUser] = useState<User | null>(BYPASS_AUTH ? BYPASS_USER : null)
+  const [isLoading, setIsLoading] = useState(!BYPASS_AUTH)
 
   const isAuthenticated = !!user
   const isAdmin = user?.role === 'admin'
+
+  // Se bypass está ativo, mostra no console
+  useEffect(() => {
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS DE AUTH ATIVO - Logado automaticamente como admin')
+      console.log('📝 Para desativar, mude BYPASS_AUTH para false em AuthContext.tsx')
+    }
+  }, [])
 
   // Get token from localStorage
   const getToken = useCallback(() => {
@@ -41,6 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check session on mount
   const checkSession = useCallback(async () => {
+    // Bypass: já está logado, não precisa verificar
+    if (BYPASS_AUTH) {
+      setUser(BYPASS_USER)
+      setIsLoading(false)
+      return
+    }
+
     const token = getToken()
     if (!token) {
       setUser(null)
@@ -76,6 +106,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Login
   const login = useCallback(async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
+    // Bypass: login instantâneo
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Login automático para', credentials.email)
+      setUser(BYPASS_USER)
+      saveToken('bypass-token-dev')
+      return { success: true }
+    }
+
     try {
       const response = await fetch('/api/auth', {
         method: 'POST',
@@ -111,6 +149,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Logout
   const logout = useCallback(async () => {
+    // Bypass: logout instantâneo (mas reloga automaticamente)
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Logout... mas você continua logado em modo dev')
+      // Em bypass, não desloga de verdade - apenas recarrega o usuário
+      setUser(BYPASS_USER)
+      return
+    }
+
     const token = getToken()
 
     try {
@@ -132,6 +178,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Change password
   const changePassword = useCallback(async (senhaAtual: string, novaSenha: string): Promise<{ success: boolean; error?: string }> => {
+    // Bypass: aceita qualquer troca de senha
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Troca de senha aprovada automaticamente')
+      return { success: true }
+    }
+
     const token = getToken()
 
     try {
@@ -163,6 +215,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verify password for production mode
   const verifyProductionPassword = useCallback(async (senha: string): Promise<{ success: boolean; error?: string }> => {
+    // Bypass: aceita qualquer senha
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Verificação de senha do modo produção aprovada automaticamente')
+      return { success: true }
+    }
+
     const token = getToken()
 
     try {
