@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
+import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button, Input } from '../ui'
 
@@ -23,6 +23,17 @@ export function LoginPage() {
       setError(result.error || 'Erro ao fazer login')
     }
 
+    setIsLoading(false)
+  }
+
+  // Entrar diretamente como admin (modo desenvolvimento)
+  const handleDevLogin = async () => {
+    setError('')
+    setIsLoading(true)
+    const result = await login({ email: 'kleiton@autnew.com', senha: 'jangada' })
+    if (!result.success) {
+      setError(result.error || 'Erro ao fazer login')
+    }
     setIsLoading(false)
   }
 
@@ -133,10 +144,21 @@ export function LoginPage() {
             </Button>
           </form>
 
-          {/* Info */}
+          {/* Dev Login Button */}
           <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-xs text-text-secondary text-center">
-              Primeiro acesso? Use as credenciais fornecidas pelo administrador.
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              size="lg"
+              onClick={handleDevLogin}
+              disabled={isLoading}
+            >
+              <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+              Entrar como Admin (Dev)
+            </Button>
+            <p className="text-xs text-text-secondary text-center mt-3">
+              Modo desenvolvimento - acesso direto sem credenciais
             </p>
           </div>
         </motion.div>

@@ -12,6 +12,8 @@ const BYPASS_USER: User = {
   email: 'kleiton@autnew.com',
   nome: 'Kleiton (Dev Mode)',
   role: 'admin',
+  ativo: true,
+  criadoEm: new Date().toISOString(),
   primeiroAcesso: false,
 }
 
