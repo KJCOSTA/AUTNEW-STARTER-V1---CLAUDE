@@ -766,6 +766,175 @@ A IA vai interpretar automaticamente!`}
         </CardContent>
       </Card>
 
+      {/* Section 4: Extrações - Summary of collected data */}
+      {(gatilho.concorrentes.some(c => c.metadados) || canal.conectado || gatilho.tema) && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent-blue/20 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-accent-blue" />
+              </div>
+              <div>
+                <CardTitle>Extrações e Input para Inteligência</CardTitle>
+                <CardDescription>
+                  Resumo dos dados coletados que serão analisados
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Video Theme Summary */}
+            {gatilho.tema && (
+              <div className="p-4 rounded-xl bg-gradient-accent/5 border border-accent-purple/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-accent-purple" />
+                  <span className="text-sm font-medium text-text-primary">Tema do Vídeo</span>
+                </div>
+                <p className="text-text-secondary text-sm">{gatilho.tema}</p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <span className="px-2 py-1 bg-white/5 rounded-lg text-xs text-text-secondary">
+                    {contentTypeOptions.find(c => c.value === gatilho.tipoConteudo)?.label || gatilho.tipoConteudo}
+                  </span>
+                  <span className="px-2 py-1 bg-white/5 rounded-lg text-xs text-text-secondary">
+                    {durationOptions.find(d => d.value === gatilho.duracao)?.label || gatilho.duracao}
+                  </span>
+                  {gatilho.gatilhosEmocionais.map(trigger => (
+                    <span key={trigger} className="px-2 py-1 bg-accent-purple/10 rounded-lg text-xs text-accent-purple">
+                      {emotionalTriggers.find(t => t.value === trigger)?.label || trigger}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Extracted Competitors */}
+            {gatilho.concorrentes.some(c => c.metadados) && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Youtube className="w-4 h-4 text-red-500" />
+                  <span className="text-sm font-medium text-text-primary">
+                    Vídeos de Referência Extraídos ({gatilho.concorrentes.filter(c => c.metadados).length})
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {gatilho.concorrentes.filter(c => c.metadados).map((concorrente) => (
+                    <div
+                      key={concorrente.id}
+                      className="flex gap-3 p-3 rounded-xl bg-background/50 border border-white/10"
+                    >
+                      {concorrente.metadados?.thumbnailUrl && (
+                        <img
+                          src={concorrente.metadados.thumbnailUrl}
+                          alt="Thumbnail"
+                          className="w-24 h-14 object-cover rounded-lg flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {concorrente.metadados?.titulo}
+                        </p>
+                        <p className="text-xs text-text-secondary truncate">
+                          {concorrente.metadados?.canal}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1.5 text-xs text-text-secondary">
+                          <span className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            {formatNumber(concorrente.metadados?.views || 0)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ThumbsUp className="w-3 h-3" />
+                            {formatNumber(concorrente.metadados?.likes || 0)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {concorrente.metadados?.duracao}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Channel Data */}
+            {canal.conectado && (
+              <div className="p-4 rounded-xl bg-status-success/5 border border-status-success/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <User className="w-4 h-4 text-status-success" />
+                  <span className="text-sm font-medium text-text-primary">Dados do Canal</span>
+                  <span className="px-2 py-0.5 bg-status-success/20 text-status-success text-xs rounded-full">
+                    Conectado
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <p className="text-xs text-text-secondary">Canal</p>
+                    <p className="text-sm font-medium text-text-primary">{canal.nome}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-text-secondary">Inscritos</p>
+                    <p className="text-sm font-medium text-text-primary">{formatNumber(canal.inscritos)}</p>
+                  </div>
+                  {canal.metricas30dias && (
+                    <>
+                      <div>
+                        <p className="text-xs text-text-secondary">Retenção Média</p>
+                        <p className="text-sm font-medium text-text-primary">{canal.metricas30dias.retencaoMedia}%</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-text-secondary">Duração Ideal</p>
+                        <p className="text-sm font-medium text-text-primary">{canal.metricas30dias.duracaoPerforma}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* What will be analyzed */}
+            <div className="p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/20">
+              <div className="flex items-center gap-2 mb-3">
+                <Lightbulb className="w-4 h-4 text-accent-blue" />
+                <span className="text-sm font-medium text-text-primary">O que será analisado na fase Inteligência</span>
+              </div>
+              <ul className="space-y-2 text-xs text-text-secondary">
+                {gatilho.tema && (
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3 text-status-success" />
+                    Deep Research sobre o tema e nicho espiritual
+                  </li>
+                )}
+                {gatilho.concorrentes.some(c => c.metadados) && (
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3 text-status-success" />
+                    Análise de {gatilho.concorrentes.filter(c => c.metadados).length} vídeo(s) de referência
+                  </li>
+                )}
+                {gatilho.concorrentes.some(c => c.transcricao) && (
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3 text-status-success" />
+                    Análise de {gatilho.concorrentes.filter(c => c.transcricao).length} transcrição(ões)
+                  </li>
+                )}
+                {canal.conectado && (
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3 text-status-success" />
+                    Métricas do canal {canal.nome} para personalização
+                  </li>
+                )}
+                {gatilho.gatilhosEmocionais.length > 0 && (
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3 h-3 text-status-success" />
+                    Otimização para gatilhos: {gatilho.gatilhosEmocionais.map(t => emotionalTriggers.find(et => et.value === t)?.label).join(', ')}
+                  </li>
+                )}
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Action Button */}
       <div className="flex justify-end">
         <Button
