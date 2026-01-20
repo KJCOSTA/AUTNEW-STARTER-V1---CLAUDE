@@ -30,8 +30,11 @@ import {
   Sliders,
   FlaskConical,
   ShieldAlert,
+  Lock,
+  Loader2,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
+import { useAuth } from '../../contexts/AuthContext'
 import {
   Button,
   Input,
@@ -180,6 +183,7 @@ const PREDEFINED_MODES = [
 
 export function Configuracoes() {
   const { configuracoes, setConfiguracoes, addToast } = useStore()
+  const { verifyProductionPassword, isAdmin } = useAuth()
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<string | null>(null)
   const [showAddApiModal, setShowAddApiModal] = useState(false)
@@ -191,6 +195,12 @@ export function Configuracoes() {
   const [showCustomModeModal, setShowCustomModeModal] = useState(false)
   const [showTestModeConfirm, setShowTestModeConfirm] = useState(false)
   const [showHealthCheckModal, setShowHealthCheckModal] = useState(false)
+
+  // Production password verification state
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [productionPassword, setProductionPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [verifyingPassword, setVerifyingPassword] = useState(false)
   const [customModeConfig, setCustomModeConfig] = useState<CustomModeConfig>({
     nome: 'Meu Modo Personalizado',
     roteiro: 'gemini',
@@ -1052,8 +1062,14 @@ export function Configuracoes() {
                 <button
                   onClick={() => {
                     if (configuracoes.appMode === 'test') {
-                      // Going to production - run health check first
-                      setShowHealthCheckModal(true)
+                      // Going to production - verify password first (admin only)
+                      if (!isAdmin) {
+                        addToast({ type: 'error', message: 'Apenas administradores podem ativar o modo produção' })
+                        return
+                      }
+                      setShowPasswordModal(true)
+                      setProductionPassword('')
+                      setPasswordError('')
                     } else {
                       // Going to test mode - no confirmation needed
                       setConfiguracoes({ appMode: 'test' })
@@ -1683,6 +1699,137 @@ export function Configuracoes() {
                   Salvar
                 </Button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Production Password Verification Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowPasswordModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-status-warning/20 flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-status-warning" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-text-primary">Verificação de Segurança</h2>
+                  <p className="text-sm text-text-secondary">Digite sua senha para ativar o modo produção</p>
+                </div>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (!productionPassword) {
+                    setPasswordError('Digite sua senha')
+                    return
+                  }
+
+                  setVerifyingPassword(true)
+                  setPasswordError('')
+
+                  const result = await verifyProductionPassword(productionPassword)
+
+                  if (result.success) {
+                    setShowPasswordModal(false)
+                    setProductionPassword('')
+                    // After password verification, run health check
+                    setShowHealthCheckModal(true)
+                  } else {
+                    setPasswordError(result.error || 'Senha incorreta')
+                  }
+
+                  setVerifyingPassword(false)
+                }}
+                className="space-y-4"
+              >
+                {/* Error Message */}
+                {passwordError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-status-error/10 border border-status-error/30 rounded-xl flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 text-status-error flex-shrink-0" />
+                    <p className="text-sm text-status-error">{passwordError}</p>
+                  </motion.div>
+                )}
+
+                {/* Password Input */}
+                <div className="relative">
+                  <Input
+                    type={showKeys['productionPassword'] ? 'text' : 'password'}
+                    placeholder="Digite sua senha"
+                    value={productionPassword}
+                    onChange={(e) => setProductionPassword(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleShowKey('productionPassword')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                  >
+                    {showKeys['productionPassword'] ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Warning Info */}
+                <div className="p-3 bg-status-warning/10 border border-status-warning/20 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 text-status-warning flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-status-warning">
+                      Ao ativar o modo produção, todas as operações usarão APIs reais e poderão gerar custos.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowPasswordModal(false)
+                      setProductionPassword('')
+                      setPasswordError('')
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={verifyingPassword || !productionPassword}
+                    className="bg-status-warning hover:bg-status-warning/90 text-black"
+                  >
+                    {verifyingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Verificando...
+                      </>
+                    ) : (
+                      'Confirmar e Continuar'
+                    )}
+                  </Button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

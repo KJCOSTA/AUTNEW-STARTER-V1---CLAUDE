@@ -14,9 +14,11 @@ import {
   Check,
   X,
   Youtube,
+  Users,
 } from 'lucide-react'
 import type { ModuleName, CanalData } from '../../types'
 import { useStore } from '../../store/useStore'
+import { useAuth } from '../../contexts/AuthContext'
 import clsx from 'clsx'
 
 interface SidebarProps {
@@ -24,7 +26,7 @@ interface SidebarProps {
   onModuleChange: (module: ModuleName) => void
 }
 
-const menuItems = [
+const baseMenuItems = [
   { id: 'plan-run' as ModuleName, label: 'Plan Run', icon: Play },
   { id: 'diretrizes' as ModuleName, label: 'Diretrizes', icon: FileText },
   { id: 'monitor' as ModuleName, label: 'Monitor', icon: Activity },
@@ -32,8 +34,16 @@ const menuItems = [
   { id: 'configuracoes' as ModuleName, label: 'Configurações', icon: Settings },
 ]
 
+const adminMenuItems = [
+  { id: 'usuarios' as ModuleName, label: 'Usuários', icon: Users },
+]
+
 export function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
   const { canal, canais, canalAtivo, addCanal, removeCanal, setActiveCanal, addToast } = useStore()
+  const { isAdmin } = useAuth()
+
+  // Combine menu items based on user role
+  const menuItems = isAdmin ? [...baseMenuItems, ...adminMenuItems] : baseMenuItems
 
   const [showCanalDropdown, setShowCanalDropdown] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)

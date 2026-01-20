@@ -9,13 +9,38 @@ import {
   Monitor,
   Historico,
   Configuracoes,
+  GestaoUsuarios,
 } from './components/modules'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { LoginPage } from './components/auth/LoginPage'
+import { ChangePasswordPage } from './components/auth/ChangePasswordPage'
 import { useStore } from './store/useStore'
 import type { ModuleName } from './types'
+import { Loader2 } from 'lucide-react'
 
-function App() {
+function AppContent() {
   const [activeModule, setActiveModule] = useState<ModuleName>('plan-run')
   const { loading, loadingMessage } = useStore()
+  const { user, isAuthenticated, isLoading, isAdmin } = useAuth()
+
+  // Show loading while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent-purple" />
+      </div>
+    )
+  }
+
+  // Show login if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
+
+  // Show change password if first access
+  if (user?.primeiroAcesso) {
+    return <ChangePasswordPage />
+  }
 
   const renderModule = () => {
     switch (activeModule) {
@@ -29,6 +54,9 @@ function App() {
         return <Historico />
       case 'configuracoes':
         return <Configuracoes />
+      case 'usuarios':
+        // Only admin can access user management
+        return isAdmin ? <GestaoUsuarios /> : <PlanRun />
       default:
         return <PlanRun />
     }
@@ -58,6 +86,14 @@ function App() {
         {loading && <Loading fullScreen message={loadingMessage} />}
       </AnimatePresence>
     </>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 

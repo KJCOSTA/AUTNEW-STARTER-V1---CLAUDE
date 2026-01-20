@@ -494,10 +494,75 @@ export interface Toast {
 }
 
 // Navigation
-export type ModuleName = 'plan-run' | 'diretrizes' | 'monitor' | 'historico' | 'configuracoes'
+export type ModuleName = 'plan-run' | 'diretrizes' | 'monitor' | 'historico' | 'configuracoes' | 'usuarios'
 
 export interface MenuItem {
   id: ModuleName
   label: string
   icon: string
+}
+
+// ============================================
+// AUTHENTICATION & USER MANAGEMENT
+// ============================================
+
+// User Roles
+export type UserRole = 'admin' | 'editor' | 'viewer'
+
+// User Interface
+export interface User {
+  id: string
+  email: string
+  nome: string
+  role: UserRole
+  ativo: boolean
+  criadoEm: string
+  ultimoLogin?: string
+  primeiroAcesso: boolean
+}
+
+// Session Interface
+export interface UserSession {
+  user: User
+  token: string
+  expiresAt: string
+}
+
+// Login credentials
+export interface LoginCredentials {
+  email: string
+  senha: string
+}
+
+// Create user payload
+export interface CreateUserPayload {
+  email: string
+  nome: string
+  senha: string
+  role: UserRole
+}
+
+// Update user payload
+export interface UpdateUserPayload {
+  id: string
+  email?: string
+  nome?: string
+  role?: UserRole
+  ativo?: boolean
+}
+
+// Change password payload
+export interface ChangePasswordPayload {
+  senhaAtual: string
+  novaSenha: string
+}
+
+// Auth context state
+export interface AuthState {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  login: (credentials: LoginCredentials) => Promise<boolean>
+  logout: () => Promise<void>
+  checkSession: () => Promise<void>
 }
