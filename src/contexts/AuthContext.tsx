@@ -90,10 +90,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user)
         return { success: true }
       } else {
+        // Handle specific error codes
+        if (data.code === 'DATABASE_CONNECTION_ERROR') {
+          return {
+            success: false,
+            error: 'Erro de conexão com o banco de dados. Verifique a configuração do POSTGRES_URL no Vercel.'
+          }
+        }
         return { success: false, error: data.error || 'Erro ao fazer login' }
       }
     } catch (error) {
       console.error('Login failed:', error)
+      // Check if it's a network error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return { success: false, error: 'Erro de rede. Verifique sua conexão.' }
+      }
       return { success: false, error: 'Erro de conexão. Tente novamente.' }
     }
   }, [saveToken])
