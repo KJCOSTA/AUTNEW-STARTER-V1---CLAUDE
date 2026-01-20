@@ -2,7 +2,6 @@ import { ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { MobileNav } from './MobileNav'
-import { ProgressBar } from '../ui/ProgressBar'
 import { useIsMobile } from '../../hooks/useMediaQuery'
 import { useStore } from '../../store/useStore'
 import type { ModuleName } from '../../types'
@@ -17,16 +16,14 @@ export function Layout({ children, activeModule, onModuleChange }: LayoutProps) 
   const isMobile = useIsMobile()
   const { faseAtual } = useStore()
 
-  // Show progress bar only in Plan Run module
-  const showProgressBar = activeModule === 'plan-run'
-
   // Convert phase string to number for MobileNav
   const phaseMap: Record<string, number> = {
     gatilho: 1,
-    inteligencia: 2,
-    criacao: 3,
-    estudio: 4,
-    entrega: 5,
+    planejamento: 2,
+    inteligencia: 3,
+    criacao: 4,
+    estudio: 5,
+    entrega: 6,
   }
   const currentPhaseNumber = phaseMap[faseAtual] || 1
 
@@ -58,7 +55,6 @@ export function Layout({ children, activeModule, onModuleChange }: LayoutProps) 
         <main className={`
           ${isMobile ? 'p-4' : 'p-6'}
         `}>
-          {showProgressBar && <ProgressBar />}
           {children}
         </main>
 

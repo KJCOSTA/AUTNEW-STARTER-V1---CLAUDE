@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Zap, Brain, Palette, Film, Send, Check } from 'lucide-react'
+import { Zap, Brain, Palette, Film, Send, Check, FileText } from 'lucide-react'
 import clsx from 'clsx'
 import type { PipelinePhase } from '../../types'
 
@@ -10,13 +10,14 @@ interface PhaseStepperProps {
 
 const phases: { id: PipelinePhase; label: string; icon: typeof Zap }[] = [
   { id: 'gatilho', label: 'Gatilho', icon: Zap },
+  { id: 'planejamento', label: 'Planejamento', icon: FileText },
   { id: 'inteligencia', label: 'Inteligência', icon: Brain },
   { id: 'criacao', label: 'Criação', icon: Palette },
   { id: 'estudio', label: 'Estúdio', icon: Film },
   { id: 'entrega', label: 'Entrega', icon: Send },
 ]
 
-const phaseOrder: PipelinePhase[] = ['gatilho', 'inteligencia', 'criacao', 'estudio', 'entrega']
+const phaseOrder: PipelinePhase[] = ['gatilho', 'planejamento', 'inteligencia', 'criacao', 'estudio', 'entrega']
 
 export function PhaseStepper({ currentPhase, onPhaseClick }: PhaseStepperProps) {
   const currentIndex = phaseOrder.indexOf(currentPhase)

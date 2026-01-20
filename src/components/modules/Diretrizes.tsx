@@ -92,6 +92,25 @@ export function Diretrizes() {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
   }
 
+  // Check if a pre-defined section is active
+  const isSectionActive = (section: 'listaNegra' | 'estiloVisual' | 'ctasObrigatorios' | 'arquiteturaRoteiro'): boolean => {
+    return diretrizes.secoesAtivas?.[section] ?? true
+  }
+
+  // Toggle pre-defined section on/off
+  const toggleSectionActive = (section: 'listaNegra' | 'estiloVisual' | 'ctasObrigatorios' | 'arquiteturaRoteiro') => {
+    setDiretrizes({
+      secoesAtivas: {
+        ...(diretrizes.secoesAtivas || { listaNegra: true, estiloVisual: true, ctasObrigatorios: true, arquiteturaRoteiro: true }),
+        [section]: !isSectionActive(section),
+      },
+    })
+    addToast({
+      type: 'info',
+      message: isSectionActive(section) ? 'Seção desativada' : 'Seção ativada'
+    })
+  }
+
   // Custom diretriz handlers
   const handleAddDiretriz = () => {
     if (!newDiretriz.titulo.trim() || !newDiretriz.conteudo.trim()) {
@@ -492,30 +511,50 @@ export function Diretrizes() {
       {/* ==================== SEÇÕES COLAPSÁVEIS ==================== */}
 
       {/* Blacklist - Collapsible */}
-      <Card>
-        <button
-          onClick={() => toggleSection('listaNegra')}
-          className="w-full"
-        >
-          <CardHeader className="hover:bg-white/2 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Ban className="w-5 h-5 text-status-error" />
-                <div className="text-left">
-                  <CardTitle>Lista Negra</CardTitle>
-                  <CardDescription>
-                    {diretrizes.listaNegra.length} palavra(s) bloqueada(s)
-                  </CardDescription>
-                </div>
+      <Card className={!isSectionActive('listaNegra') ? 'opacity-50' : ''}>
+        <CardHeader className="hover:bg-white/2 transition-colors">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => toggleSection('listaNegra')}
+              className="flex items-center gap-3 flex-1"
+            >
+              <Ban className="w-5 h-5 text-status-error" />
+              <div className="text-left">
+                <CardTitle>Lista Negra</CardTitle>
+                <CardDescription>
+                  {diretrizes.listaNegra.length} palavra(s) bloqueada(s)
+                  {!isSectionActive('listaNegra') && ' (Desativada)'}
+                </CardDescription>
               </div>
-              <ChevronRight
-                className={`w-5 h-5 text-text-secondary transition-transform ${
-                  expandedSections.listaNegra ? 'rotate-90' : ''
-                }`}
-              />
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleSectionActive('listaNegra')
+                }}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                title={isSectionActive('listaNegra') ? 'Desativar seção' : 'Ativar seção'}
+              >
+                {isSectionActive('listaNegra') ? (
+                  <ToggleRight className="w-6 h-6 text-status-success" />
+                ) : (
+                  <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                )}
+              </button>
+              <button
+                onClick={() => toggleSection('listaNegra')}
+                className="p-1"
+              >
+                <ChevronRight
+                  className={`w-5 h-5 text-text-secondary transition-transform ${
+                    expandedSections.listaNegra ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
             </div>
-          </CardHeader>
-        </button>
+          </div>
+        </CardHeader>
         <AnimatePresence>
           {expandedSections.listaNegra && (
             <motion.div
@@ -567,30 +606,50 @@ export function Diretrizes() {
       </Card>
 
       {/* Visual Style - Collapsible */}
-      <Card>
-        <button
-          onClick={() => toggleSection('estiloVisual')}
-          className="w-full"
-        >
-          <CardHeader className="hover:bg-white/2 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Palette className="w-5 h-5 text-accent-purple" />
-                <div className="text-left">
-                  <CardTitle>Estilo Visual</CardTitle>
-                  <CardDescription>
-                    Regras para thumbnails e imagens
-                  </CardDescription>
-                </div>
+      <Card className={!isSectionActive('estiloVisual') ? 'opacity-50' : ''}>
+        <CardHeader className="hover:bg-white/2 transition-colors">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => toggleSection('estiloVisual')}
+              className="flex items-center gap-3 flex-1"
+            >
+              <Palette className="w-5 h-5 text-accent-purple" />
+              <div className="text-left">
+                <CardTitle>Estilo Visual</CardTitle>
+                <CardDescription>
+                  Regras para thumbnails e imagens
+                  {!isSectionActive('estiloVisual') && ' (Desativada)'}
+                </CardDescription>
               </div>
-              <ChevronRight
-                className={`w-5 h-5 text-text-secondary transition-transform ${
-                  expandedSections.estiloVisual ? 'rotate-90' : ''
-                }`}
-              />
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleSectionActive('estiloVisual')
+                }}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                title={isSectionActive('estiloVisual') ? 'Desativar seção' : 'Ativar seção'}
+              >
+                {isSectionActive('estiloVisual') ? (
+                  <ToggleRight className="w-6 h-6 text-status-success" />
+                ) : (
+                  <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                )}
+              </button>
+              <button
+                onClick={() => toggleSection('estiloVisual')}
+                className="p-1"
+              >
+                <ChevronRight
+                  className={`w-5 h-5 text-text-secondary transition-transform ${
+                    expandedSections.estiloVisual ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
             </div>
-          </CardHeader>
-        </button>
+          </div>
+        </CardHeader>
         <AnimatePresence>
           {expandedSections.estiloVisual && (
             <motion.div
@@ -656,30 +715,50 @@ export function Diretrizes() {
       </Card>
 
       {/* CTAs - Collapsible */}
-      <Card>
-        <button
-          onClick={() => toggleSection('ctas')}
-          className="w-full"
-        >
-          <CardHeader className="hover:bg-white/2 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-5 h-5 text-status-success" />
-                <div className="text-left">
-                  <CardTitle>CTAs Obrigatórios</CardTitle>
-                  <CardDescription>
-                    Chamadas para ação automáticas
-                  </CardDescription>
-                </div>
+      <Card className={!isSectionActive('ctasObrigatorios') ? 'opacity-50' : ''}>
+        <CardHeader className="hover:bg-white/2 transition-colors">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => toggleSection('ctas')}
+              className="flex items-center gap-3 flex-1"
+            >
+              <MessageSquare className="w-5 h-5 text-status-success" />
+              <div className="text-left">
+                <CardTitle>CTAs Obrigatórios</CardTitle>
+                <CardDescription>
+                  Chamadas para ação automáticas
+                  {!isSectionActive('ctasObrigatorios') && ' (Desativada)'}
+                </CardDescription>
               </div>
-              <ChevronRight
-                className={`w-5 h-5 text-text-secondary transition-transform ${
-                  expandedSections.ctas ? 'rotate-90' : ''
-                }`}
-              />
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleSectionActive('ctasObrigatorios')
+                }}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                title={isSectionActive('ctasObrigatorios') ? 'Desativar seção' : 'Ativar seção'}
+              >
+                {isSectionActive('ctasObrigatorios') ? (
+                  <ToggleRight className="w-6 h-6 text-status-success" />
+                ) : (
+                  <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                )}
+              </button>
+              <button
+                onClick={() => toggleSection('ctas')}
+                className="p-1"
+              >
+                <ChevronRight
+                  className={`w-5 h-5 text-text-secondary transition-transform ${
+                    expandedSections.ctas ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
             </div>
-          </CardHeader>
-        </button>
+          </div>
+        </CardHeader>
         <AnimatePresence>
           {expandedSections.ctas && (
             <motion.div
@@ -736,30 +815,50 @@ export function Diretrizes() {
       </Card>
 
       {/* Script Architecture - Collapsible */}
-      <Card>
-        <button
-          onClick={() => toggleSection('arquitetura')}
-          className="w-full"
-        >
-          <CardHeader className="hover:bg-white/2 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Layout className="w-5 h-5 text-accent-blue" />
-                <div className="text-left">
-                  <CardTitle>Arquitetura do Roteiro</CardTitle>
-                  <CardDescription>
-                    Estrutura padrão para roteiros
-                  </CardDescription>
-                </div>
+      <Card className={!isSectionActive('arquiteturaRoteiro') ? 'opacity-50' : ''}>
+        <CardHeader className="hover:bg-white/2 transition-colors">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => toggleSection('arquitetura')}
+              className="flex items-center gap-3 flex-1"
+            >
+              <Layout className="w-5 h-5 text-accent-blue" />
+              <div className="text-left">
+                <CardTitle>Arquitetura do Roteiro</CardTitle>
+                <CardDescription>
+                  Estrutura padrão para roteiros
+                  {!isSectionActive('arquiteturaRoteiro') && ' (Desativada)'}
+                </CardDescription>
               </div>
-              <ChevronRight
-                className={`w-5 h-5 text-text-secondary transition-transform ${
-                  expandedSections.arquitetura ? 'rotate-90' : ''
-                }`}
-              />
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleSectionActive('arquiteturaRoteiro')
+                }}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                title={isSectionActive('arquiteturaRoteiro') ? 'Desativar seção' : 'Ativar seção'}
+              >
+                {isSectionActive('arquiteturaRoteiro') ? (
+                  <ToggleRight className="w-6 h-6 text-status-success" />
+                ) : (
+                  <ToggleLeft className="w-6 h-6 text-text-secondary" />
+                )}
+              </button>
+              <button
+                onClick={() => toggleSection('arquitetura')}
+                className="p-1"
+              >
+                <ChevronRight
+                  className={`w-5 h-5 text-text-secondary transition-transform ${
+                    expandedSections.arquitetura ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
             </div>
-          </CardHeader>
-        </button>
+          </div>
+        </CardHeader>
         <AnimatePresence>
           {expandedSections.arquitetura && (
             <motion.div

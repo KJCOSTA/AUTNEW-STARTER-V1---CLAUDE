@@ -3,7 +3,7 @@
 // ============================================
 
 // Pipeline Phases
-export type PipelinePhase = 'gatilho' | 'inteligencia' | 'criacao' | 'estudio' | 'entrega'
+export type PipelinePhase = 'gatilho' | 'planejamento' | 'inteligencia' | 'criacao' | 'estudio' | 'entrega'
 
 export interface PhaseInfo {
   id: PipelinePhase
@@ -102,6 +102,18 @@ export interface CanalData {
     duracaoPerforma: string
     totalViews: number
   } | null
+}
+
+// Phase 1.5: Planejamento - Human-in-the-Loop checkpoint
+export interface PlanejamentoData {
+  // Plano de pesquisa gerado automaticamente (editável)
+  planoPesquisa: string
+  // Se o plano foi aprovado pelo usuário
+  aprovado: boolean
+  // Timestamp da aprovação
+  aprovadoEm?: string
+  // Versão original do plano (para comparação)
+  planoOriginal?: string
 }
 
 // Phase 2: Intelligence Analysis Results
@@ -267,6 +279,13 @@ export interface DiretrizCustomizada {
 }
 
 export interface DiretrizesContent {
+  // Seções ativas (toggle on/off)
+  secoesAtivas?: {
+    listaNegra: boolean
+    estiloVisual: boolean
+    ctasObrigatorios: boolean
+    arquiteturaRoteiro: boolean
+  }
   listaNegra: string[]
   estiloVisual: {
     fontes: string
@@ -403,6 +422,9 @@ export interface AppState {
   // Pipeline data
   gatilho: GatilhoData
   setGatilho: (data: Partial<GatilhoData>) => void
+
+  planejamento: PlanejamentoData
+  setPlanejamento: (data: Partial<PlanejamentoData>) => void
 
   inteligencia: InteligenciaData | null
   setInteligencia: (data: InteligenciaData) => void
