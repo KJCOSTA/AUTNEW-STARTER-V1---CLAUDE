@@ -179,10 +179,11 @@ export function Phase2Inteligencia({ onNext, onBack }: Phase2InteligenciaProps) 
         // PRODUCTION MODE: Real API call only - NO fallback to mock data
         addLog('deep-research', 'Chamando API Gemini...')
 
-        const response = await fetch('/api/gemini', {
+        const response = await fetch('/api/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            provider: 'gemini',
             action: 'analyze',
             data: gatilho,
           }),

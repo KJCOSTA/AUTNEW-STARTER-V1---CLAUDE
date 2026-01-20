@@ -247,10 +247,11 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         addToast({ type: 'success', message: '[TEST MODE] Conteúdo gerado!' })
       } else {
         // PRODUCTION MODE: Real API call only - NO fallback to mock data
-        const response = await fetch('/api/gemini', {
+        const response = await fetch('/api/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            provider: 'gemini',
             action: 'generate-video-content',
             tema: gatilho.tema,
             tipoConteudo: gatilho.tipoConteudo,
@@ -336,10 +337,11 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         setCriacao({ thumbVariants: updated })
         addToast({ type: 'success', message: '[TEST MODE] Thumbnail simulada!' })
       } else {
-        const response = await fetch('/api/openai', {
+        const response = await fetch('/api/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            provider: 'openai',
             action: 'generate-thumbnail',
             prompt: thumb.prompt || thumb.conceito,
           }),
@@ -406,10 +408,11 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         addToast({ type: 'success', message: '[TEST MODE] Roteiro regenerado!' })
       } else {
         // PRODUCTION MODE: Real API call only - NO fallback to mock data
-        const response = await fetch('/api/gemini', {
+        const response = await fetch('/api/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            provider: 'gemini',
             action: 'generate-script',
             tema: gatilho.tema,
             tipoConteudo: gatilho.tipoConteudo,
@@ -471,10 +474,11 @@ export function Phase3Criacao({ onNext, onBack }: Phase3CriacaoProps) {
         setAudioDuration(45)
         addToast({ type: 'success', message: '[TEST MODE] Áudio simulado gerado!' })
       } else {
-        const response = await fetch('/api/edge-tts', {
+        const response = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            provider: 'edge',
             text: paragraphs,
             voice: selectedVoice,
             rate: '-5%',
