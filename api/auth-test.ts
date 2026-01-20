@@ -111,12 +111,25 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
       const passwordMatch = await bcrypt.compare('jangada', adminUser.rows[0].senha_hash)
       diagnostics.steps.push({
         step: 'test_password_complete',
-        status: 'success',
+        status: passwordMatch ? 'success' : 'password_mismatch',
         passwordMatch
       })
+
+      // If password doesn't match, reset it
+      if (!passwordMatch) {
+        diagnostics.steps.push({ step: 'resetting_password', status: 'running' })
+        const newHash = await bcrypt.hash('jangada', 12)
+        await sql`UPDATE users SET senha_hash = ${newHash}, primeiro_acesso = true WHERE email = ${adminEmail}`
+        diagnostics.steps.push({
+          step: 'password_reset_complete',
+          status: 'success',
+          message: 'Senha resetada para: jangada'
+        })
+      }
     }
 
     diagnostics.success = true
+    diagnostics.message = 'Todas as etapas concluídas. Tente fazer login com: kleiton@autnew.com / jangada'
     return res.status(200).json(diagnostics)
 
   } catch (error: any) {

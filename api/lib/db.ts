@@ -194,6 +194,15 @@ export const userDB = {
       })
     }
     return existing
+  },
+
+  async resetAdminPassword(adminEmail: string, senhaHash: string) {
+    const result = await sql`
+      UPDATE users SET senha_hash = ${senhaHash}, primeiro_acesso = true
+      WHERE email = ${adminEmail}
+      RETURNING *
+    `
+    return result.rows[0] || null
   }
 }
 
