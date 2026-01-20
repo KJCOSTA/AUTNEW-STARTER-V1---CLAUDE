@@ -4,7 +4,7 @@ import { sql } from '@vercel/postgres'
 
 // This endpoint tests what happens when you try to login
 // SECURITY: Only available in non-production environments
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(_req: VercelRequest, res: VercelResponse) {
   // Block in production
   if (process.env.VERCEL_ENV === 'production') {
     return res.status(403).json({
