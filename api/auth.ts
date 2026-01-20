@@ -1,484 +1,603 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db'
 
-// ============================================
-// TIPOS
-// ============================================
-
-interface User {
-  id: string
-  email: string
-  nome: string
-  role: 'admin' | 'editor' | 'viewer'
-  ativo: boolean
-  criadoEm: string
-  ultimoLogin?: string
-  primeiroAcesso: boolean
-  senhaHash: string
-}
-
-interface Session {
-  token: string
-  userId: string
-  expiresAt: string
-}
-
-// ============================================
-// ARMAZENAMENTO EM MEMÓRIA (para demo/dev)
-// Em produção, usar banco de dados real
-// ============================================
-
-// Usuários armazenados (simulando banco de dados)
-// O admin inicial é criado com senha "territorio"
+// Constants
+const ADMIN_EMAIL = 'admin@autnew.com'
+const ADMIN_NOME = 'Administrador'
 const ADMIN_INITIAL_PASSWORD = 'territorio'
+const SESSION_DURATION_HOURS = 24
+const BCRYPT_SALT_ROUNDS = 12
 
-// Hash simples para senha (em produção usar bcrypt)
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password + process.env.AUTH_SECRET || 'autnew-secret-key').digest('hex')
+// Password hashing with bcrypt
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_SALT_ROUNDS)
 }
 
-function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash)
 }
 
-// Gerar token de sessão
+// Generate secure token
 function generateToken(): string {
   return crypto.randomBytes(32).toString('hex')
 }
 
-// Armazenamento global em memória (reseta quando serverless function reinicia)
-// Em produção, usar Redis/KV ou banco de dados
-declare global {
-  // eslint-disable-next-line no-var
-  var __users: Map<string, User> | undefined
-  // eslint-disable-next-line no-var
-  var __sessions: Map<string, Session> | undefined
-}
-
-function getUsers(): Map<string, User> {
-  if (!global.__users) {
-    global.__users = new Map()
-    // Criar admin inicial
-    const adminId = 'admin-001'
-    global.__users.set(adminId, {
-      id: adminId,
-      email: 'admin@autnew.com',
-      nome: 'Administrador',
-      role: 'admin',
-      ativo: true,
-      criadoEm: new Date().toISOString(),
-      primeiroAcesso: true,
-      senhaHash: hashPassword(ADMIN_INITIAL_PASSWORD),
-    })
+// Get client info from request
+function getClientInfo(req: VercelRequest) {
+  return {
+    ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+               req.socket?.remoteAddress ||
+               'unknown',
+    userAgent: req.headers['user-agent'] || 'unknown'
   }
-  return global.__users
 }
 
-function getSessions(): Map<string, Session> {
-  if (!global.__sessions) {
-    global.__sessions = new Map()
-  }
-  return global.__sessions
+// Initialize database and ensure admin exists
+async function ensureInitialized() {
+  await initializeDatabase()
+  const adminHash = await hashPassword(ADMIN_INITIAL_PASSWORD)
+  await userDB.ensureAdminExists(ADMIN_EMAIL, ADMIN_NOME, adminHash)
 }
 
-// ============================================
-// HANDLERS
-// ============================================
-
-// Login
+// Login handler
 async function handleLogin(req: VercelRequest, res: VercelResponse) {
   const { email, senha } = req.body
+  const clientInfo = getClientInfo(req)
 
   if (!email || !senha) {
+    await auditDB.log({
+      action: 'login_attempt',
+      category: 'auth',
+      details: { email, reason: 'missing_credentials' },
+      ...clientInfo,
+      success: false,
+      errorMessage: 'Email e senha são obrigatórios'
+    })
     return res.status(400).json({ error: 'Email e senha são obrigatórios' })
   }
 
-  const users = getUsers()
-  const user = Array.from(users.values()).find((u) => u.email === email)
+  await ensureInitialized()
+
+  const user = await userDB.findByEmail(email)
 
   if (!user) {
+    await auditDB.log({
+      action: 'login_attempt',
+      category: 'auth',
+      details: { email, reason: 'user_not_found' },
+      ...clientInfo,
+      success: false,
+      errorMessage: 'Usuário não encontrado'
+    })
     return res.status(401).json({ error: 'Credenciais inválidas' })
   }
 
   if (!user.ativo) {
-    return res.status(403).json({ error: 'Usuário desativado. Contate o administrador.' })
+    await auditDB.log({
+      userId: user.id,
+      action: 'login_attempt',
+      category: 'auth',
+      details: { reason: 'user_inactive' },
+      ...clientInfo,
+      success: false,
+      errorMessage: 'Usuário desativado'
+    })
+    return res.status(401).json({ error: 'Usuário desativado' })
   }
 
-  if (!verifyPassword(senha, user.senhaHash)) {
+  const passwordValid = await verifyPassword(senha, user.senha_hash)
+
+  if (!passwordValid) {
+    await auditDB.log({
+      userId: user.id,
+      action: 'login_attempt',
+      category: 'auth',
+      details: { reason: 'invalid_password' },
+      ...clientInfo,
+      success: false,
+      errorMessage: 'Senha incorreta'
+    })
     return res.status(401).json({ error: 'Credenciais inválidas' })
   }
 
-  // Atualizar último login
-  user.ultimoLogin = new Date().toISOString()
-  users.set(user.id, user)
-
-  // Criar sessão
+  // Create session
   const token = generateToken()
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 horas
+  const expiresAt = new Date(Date.now() + SESSION_DURATION_HOURS * 60 * 60 * 1000)
 
-  const sessions = getSessions()
-  sessions.set(token, {
-    token,
+  await sessionDB.create({
     userId: user.id,
+    token,
     expiresAt,
+    ...clientInfo
   })
 
-  // Retornar usuário sem a senha
-  const { senhaHash, ...userWithoutPassword } = user
+  // Update last login
+  await userDB.update(user.id, { ultimoLogin: new Date() })
+
+  // Log successful login
+  await auditDB.log({
+    userId: user.id,
+    action: 'login_success',
+    category: 'auth',
+    details: { sessionDuration: SESSION_DURATION_HOURS },
+    ...clientInfo,
+    success: true
+  })
 
   return res.status(200).json({
     success: true,
-    user: userWithoutPassword,
+    user: {
+      id: user.id,
+      email: user.email,
+      nome: user.nome,
+      role: user.role,
+      primeiroAcesso: user.primeiro_acesso
+    },
     token,
-    expiresAt,
+    expiresAt: expiresAt.toISOString()
   })
 }
 
-// Logout
+// Logout handler
 async function handleLogout(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const clientInfo = getClientInfo(req)
 
-  if (token) {
-    const sessions = getSessions()
-    sessions.delete(token)
+  if (!token) {
+    return res.status(400).json({ error: 'Token não fornecido' })
   }
+
+  const session = await sessionDB.findByToken(token)
+
+  if (session) {
+    await auditDB.log({
+      userId: session.user_id,
+      action: 'logout',
+      category: 'auth',
+      ...clientInfo,
+      success: true
+    })
+  }
+
+  await sessionDB.deleteByToken(token)
 
   return res.status(200).json({ success: true })
 }
 
-// Verificar sessão
+// Session verification handler
 async function handleSession(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
 
   if (!token) {
     return res.status(401).json({ error: 'Token não fornecido' })
   }
 
-  const sessions = getSessions()
-  const session = sessions.get(token)
+  await ensureInitialized()
+
+  const session = await sessionDB.findByToken(token)
 
   if (!session) {
-    return res.status(401).json({ error: 'Sessão inválida' })
+    return res.status(401).json({ error: 'Sessão inválida ou expirada' })
   }
 
-  if (new Date(session.expiresAt) < new Date()) {
-    sessions.delete(token)
-    return res.status(401).json({ error: 'Sessão expirada' })
+  if (!session.ativo) {
+    return res.status(401).json({ error: 'Usuário desativado' })
   }
-
-  const users = getUsers()
-  const user = users.get(session.userId)
-
-  if (!user || !user.ativo) {
-    sessions.delete(token)
-    return res.status(401).json({ error: 'Usuário não encontrado ou desativado' })
-  }
-
-  const { senhaHash, ...userWithoutPassword } = user
 
   return res.status(200).json({
     success: true,
-    user: userWithoutPassword,
-    expiresAt: session.expiresAt,
+    user: {
+      id: session.user_id,
+      email: session.email,
+      nome: session.nome,
+      role: session.role,
+      primeiroAcesso: session.primeiro_acesso
+    },
+    expiresAt: session.expires_at
   })
 }
 
-// Trocar senha
+// Change password handler
 async function handleChangePassword(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const { senhaAtual, novaSenha } = req.body
+  const clientInfo = getClientInfo(req)
 
   if (!token) {
     return res.status(401).json({ error: 'Não autenticado' })
   }
-
-  const sessions = getSessions()
-  const session = sessions.get(token)
-
-  if (!session || new Date(session.expiresAt) < new Date()) {
-    return res.status(401).json({ error: 'Sessão inválida ou expirada' })
-  }
-
-  const { senhaAtual, novaSenha } = req.body
 
   if (!senhaAtual || !novaSenha) {
     return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' })
   }
 
   if (novaSenha.length < 6) {
-    return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' })
+    return res.status(400).json({ error: 'Nova senha deve ter pelo menos 6 caracteres' })
   }
 
-  const users = getUsers()
-  const user = users.get(session.userId)
+  const session = await sessionDB.findByToken(token)
+
+  if (!session) {
+    return res.status(401).json({ error: 'Sessão inválida' })
+  }
+
+  const user = await userDB.findById(session.user_id)
 
   if (!user) {
     return res.status(404).json({ error: 'Usuário não encontrado' })
   }
 
-  if (!verifyPassword(senhaAtual, user.senhaHash)) {
+  const passwordValid = await verifyPassword(senhaAtual, user.senha_hash)
+
+  if (!passwordValid) {
+    await auditDB.log({
+      userId: user.id,
+      action: 'change_password_failed',
+      category: 'auth',
+      details: { reason: 'invalid_current_password' },
+      ...clientInfo,
+      success: false,
+      errorMessage: 'Senha atual incorreta'
+    })
     return res.status(401).json({ error: 'Senha atual incorreta' })
   }
 
-  // Atualizar senha
-  user.senhaHash = hashPassword(novaSenha)
-  user.primeiroAcesso = false
-  users.set(user.id, user)
+  const newHash = await hashPassword(novaSenha)
+  await userDB.update(user.id, {
+    senhaHash: newHash,
+    primeiroAcesso: false
+  })
+
+  await auditDB.log({
+    userId: user.id,
+    action: 'change_password_success',
+    category: 'auth',
+    ...clientInfo,
+    success: true
+  })
 
   return res.status(200).json({ success: true, message: 'Senha alterada com sucesso' })
 }
 
-// Verificar senha para modo produção
+// Verify production password handler
 async function handleVerifyProductionPassword(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const { senha } = req.body
+  const clientInfo = getClientInfo(req)
 
   if (!token) {
     return res.status(401).json({ error: 'Não autenticado' })
   }
 
-  const sessions = getSessions()
-  const session = sessions.get(token)
-
-  if (!session || new Date(session.expiresAt) < new Date()) {
-    return res.status(401).json({ error: 'Sessão inválida ou expirada' })
-  }
-
-  const users = getUsers()
-  const user = users.get(session.userId)
-
-  if (!user || user.role !== 'admin') {
-    return res.status(403).json({ error: 'Apenas administradores podem ativar o modo produção' })
-  }
-
-  const { senha } = req.body
-
   if (!senha) {
     return res.status(400).json({ error: 'Senha é obrigatória' })
   }
 
-  if (!verifyPassword(senha, user.senhaHash)) {
+  const session = await sessionDB.findByToken(token)
+
+  if (!session) {
+    return res.status(401).json({ error: 'Sessão inválida' })
+  }
+
+  if (session.role !== 'admin') {
+    await auditDB.log({
+      userId: session.user_id,
+      action: 'production_mode_denied',
+      category: 'production',
+      details: { reason: 'not_admin' },
+      ...clientInfo,
+      success: false,
+      errorMessage: 'Apenas administradores podem ativar modo produção'
+    })
+    return res.status(403).json({ error: 'Apenas administradores podem ativar modo produção' })
+  }
+
+  const user = await userDB.findById(session.user_id)
+
+  if (!user) {
+    return res.status(404).json({ error: 'Usuário não encontrado' })
+  }
+
+  const passwordValid = await verifyPassword(senha, user.senha_hash)
+
+  if (!passwordValid) {
+    await auditDB.log({
+      userId: user.id,
+      action: 'production_mode_password_failed',
+      category: 'production',
+      ...clientInfo,
+      success: false,
+      errorMessage: 'Senha incorreta'
+    })
     return res.status(401).json({ error: 'Senha incorreta' })
   }
 
-  return res.status(200).json({ success: true, message: 'Senha verificada' })
+  await auditDB.log({
+    userId: user.id,
+    action: 'production_mode_password_verified',
+    category: 'production',
+    ...clientInfo,
+    success: true
+  })
+
+  return res.status(200).json({ success: true })
 }
 
-// ============================================
-// HANDLERS DE GESTÃO DE USUÁRIOS
-// (consolidado de users.ts para reduzir serverless functions)
-// ============================================
-
-function generateId(): string {
-  return `user-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
-}
-
-function verifyAdmin(token: string): User | null {
-  const sessions = getSessions()
-  const session = sessions.get(token)
-
-  if (!session || new Date(session.expiresAt) < new Date()) {
-    return null
-  }
-
-  const users = getUsers()
-  const user = users.get(session.userId)
-
-  if (!user || user.role !== 'admin') {
-    return null
-  }
-
-  return user
-}
-
+// User management handlers
 async function handleListUsers(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
 
-  if (!token || !verifyAdmin(token)) {
-    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  if (!token) {
+    return res.status(401).json({ error: 'Não autenticado' })
   }
 
-  const users = getUsers()
-  const userList = Array.from(users.values()).map(({ senhaHash, ...user }) => user)
+  const session = await sessionDB.findByToken(token)
 
-  return res.status(200).json({ success: true, users: userList })
+  if (!session || session.role !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' })
+  }
+
+  await ensureInitialized()
+
+  const users = await userDB.list()
+
+  return res.status(200).json({
+    success: true,
+    users: users.map(u => ({
+      id: u.id,
+      email: u.email,
+      nome: u.nome,
+      role: u.role,
+      ativo: u.ativo,
+      primeiroAcesso: u.primeiro_acesso,
+      criadoEm: u.criado_em,
+      ultimoLogin: u.ultimo_login
+    }))
+  })
 }
 
 async function handleCreateUser(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const { email, nome, senha, role } = req.body
+  const clientInfo = getClientInfo(req)
 
-  if (!token || !verifyAdmin(token)) {
-    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  if (!token) {
+    return res.status(401).json({ error: 'Não autenticado' })
   }
 
-  const { email, nome, senha, role } = req.body
+  const session = await sessionDB.findByToken(token)
 
-  if (!email || !nome || !senha || !role) {
-    return res.status(400).json({ error: 'Email, nome, senha e role são obrigatórios' })
+  if (!session || session.role !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' })
+  }
+
+  if (!email || !nome || !senha) {
+    return res.status(400).json({ error: 'Email, nome e senha são obrigatórios' })
   }
 
   if (!['admin', 'editor', 'viewer'].includes(role)) {
-    return res.status(400).json({ error: 'Role inválido. Use: admin, editor ou viewer' })
+    return res.status(400).json({ error: 'Role inválido' })
   }
 
-  if (senha.length < 6) {
-    return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' })
-  }
+  const existingUser = await userDB.findByEmail(email)
 
-  const users = getUsers()
-  const existingUser = Array.from(users.values()).find((u) => u.email === email)
   if (existingUser) {
-    return res.status(409).json({ error: 'Este email já está cadastrado' })
+    return res.status(400).json({ error: 'Email já cadastrado' })
   }
 
-  const newUser: User = {
-    id: generateId(),
+  const senhaHash = await hashPassword(senha)
+
+  const newUser = await userDB.create({
     email,
     nome,
+    senhaHash,
     role,
-    ativo: true,
-    criadoEm: new Date().toISOString(),
-    primeiroAcesso: true,
-    senhaHash: hashPassword(senha),
-  }
+    primeiroAcesso: true
+  })
 
-  users.set(newUser.id, newUser)
-  const { senhaHash, ...userWithoutPassword } = newUser
+  await auditDB.log({
+    userId: session.user_id,
+    action: 'user_created',
+    category: 'user_management',
+    details: { createdUserId: newUser.id, email, role },
+    ...clientInfo,
+    success: true
+  })
 
-  return res.status(201).json({ success: true, user: userWithoutPassword, message: 'Usuário criado com sucesso' })
+  return res.status(201).json({
+    success: true,
+    user: {
+      id: newUser.id,
+      email: newUser.email,
+      nome: newUser.nome,
+      role: newUser.role,
+      ativo: newUser.ativo,
+      primeiroAcesso: newUser.primeiro_acesso,
+      criadoEm: newUser.criado_em
+    },
+    message: 'Usuário criado com sucesso'
+  })
 }
 
 async function handleUpdateUser(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const { id, email, nome, role, ativo } = req.body
+  const clientInfo = getClientInfo(req)
 
-  if (!token || !verifyAdmin(token)) {
-    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  if (!token) {
+    return res.status(401).json({ error: 'Não autenticado' })
   }
 
-  const { id, email, nome, role, ativo } = req.body
+  const session = await sessionDB.findByToken(token)
+
+  if (!session || session.role !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' })
+  }
 
   if (!id) {
     return res.status(400).json({ error: 'ID do usuário é obrigatório' })
   }
 
-  const users = getUsers()
-  const user = users.get(id)
+  const user = await userDB.findById(id)
 
   if (!user) {
     return res.status(404).json({ error: 'Usuário não encontrado' })
   }
 
-  const sessions = getSessions()
-  const session = sessions.get(token)
-  if (session?.userId === id && ativo === false) {
-    return res.status(400).json({ error: 'Você não pode desativar sua própria conta' })
-  }
+  const updateData: any = {}
+  if (email !== undefined) updateData.email = email
+  if (nome !== undefined) updateData.nome = nome
+  if (role !== undefined) updateData.role = role
+  if (ativo !== undefined) updateData.ativo = ativo
 
-  if (email && email !== user.email) {
-    const existingUser = Array.from(users.values()).find((u) => u.email === email)
-    if (existingUser) {
-      return res.status(409).json({ error: 'Este email já está cadastrado' })
-    }
-    user.email = email
-  }
+  const updatedUser = await userDB.update(id, updateData)
 
-  if (nome) user.nome = nome
-  if (role && ['admin', 'editor', 'viewer'].includes(role)) user.role = role
-  if (typeof ativo === 'boolean') user.ativo = ativo
+  await auditDB.log({
+    userId: session.user_id,
+    action: 'user_updated',
+    category: 'user_management',
+    details: { targetUserId: id, changes: updateData },
+    ...clientInfo,
+    success: true
+  })
 
-  users.set(id, user)
-  const { senhaHash, ...userWithoutPassword } = user
-
-  return res.status(200).json({ success: true, user: userWithoutPassword, message: 'Usuário atualizado com sucesso' })
+  return res.status(200).json({
+    success: true,
+    user: {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      nome: updatedUser.nome,
+      role: updatedUser.role,
+      ativo: updatedUser.ativo,
+      primeiroAcesso: updatedUser.primeiro_acesso,
+      criadoEm: updatedUser.criado_em,
+      ultimoLogin: updatedUser.ultimo_login
+    },
+    message: 'Usuário atualizado com sucesso'
+  })
 }
 
 async function handleDeleteUser(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const { id } = req.body
+  const clientInfo = getClientInfo(req)
 
-  if (!token || !verifyAdmin(token)) {
-    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  if (!token) {
+    return res.status(401).json({ error: 'Não autenticado' })
   }
 
-  const { id } = req.body
+  const session = await sessionDB.findByToken(token)
+
+  if (!session || session.role !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' })
+  }
 
   if (!id) {
     return res.status(400).json({ error: 'ID do usuário é obrigatório' })
   }
 
-  const users = getUsers()
-  const user = users.get(id)
+  if (id === session.user_id) {
+    return res.status(400).json({ error: 'Não é possível excluir seu próprio usuário' })
+  }
+
+  const user = await userDB.findById(id)
 
   if (!user) {
     return res.status(404).json({ error: 'Usuário não encontrado' })
   }
 
-  const sessions = getSessions()
-  const session = sessions.get(token)
-  if (session?.userId === id) {
-    return res.status(400).json({ error: 'Você não pode deletar sua própria conta' })
-  }
+  // Delete user sessions first
+  await sessionDB.deleteByUserId(id)
 
-  const admins = Array.from(users.values()).filter((u) => u.role === 'admin')
-  if (user.role === 'admin' && admins.length <= 1) {
-    return res.status(400).json({ error: 'Não é possível deletar o único administrador do sistema' })
-  }
+  // Delete user
+  await userDB.delete(id)
 
-  users.delete(id)
-
-  const allSessions = Array.from(getSessions().entries())
-  allSessions.forEach(([sessionToken, sess]) => {
-    if (sess.userId === id) {
-      getSessions().delete(sessionToken)
-    }
+  await auditDB.log({
+    userId: session.user_id,
+    action: 'user_deleted',
+    category: 'user_management',
+    details: { deletedUserId: id, deletedEmail: user.email },
+    ...clientInfo,
+    success: true
   })
 
   return res.status(200).json({ success: true, message: 'Usuário deletado com sucesso' })
 }
 
 async function handleResetPassword(req: VercelRequest, res: VercelResponse) {
-  const authHeader = req.headers.authorization
-  const token = authHeader?.replace('Bearer ', '')
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const { id, novaSenha } = req.body
+  const clientInfo = getClientInfo(req)
 
-  if (!token || !verifyAdmin(token)) {
-    return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' })
+  if (!token) {
+    return res.status(401).json({ error: 'Não autenticado' })
   }
 
-  const { id, novaSenha } = req.body
+  const session = await sessionDB.findByToken(token)
+
+  if (!session || session.role !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' })
+  }
 
   if (!id || !novaSenha) {
-    return res.status(400).json({ error: 'ID e nova senha são obrigatórios' })
+    return res.status(400).json({ error: 'ID do usuário e nova senha são obrigatórios' })
   }
 
-  if (novaSenha.length < 6) {
-    return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' })
-  }
-
-  const users = getUsers()
-  const user = users.get(id)
+  const user = await userDB.findById(id)
 
   if (!user) {
     return res.status(404).json({ error: 'Usuário não encontrado' })
   }
 
-  user.senhaHash = hashPassword(novaSenha)
-  user.primeiroAcesso = true
-  users.set(id, user)
+  const newHash = await hashPassword(novaSenha)
+  await userDB.update(id, {
+    senhaHash: newHash,
+    primeiroAcesso: true
+  })
 
-  return res.status(200).json({ success: true, message: 'Senha resetada com sucesso.' })
+  // Invalidate all sessions for this user
+  await sessionDB.deleteByUserId(id)
+
+  await auditDB.log({
+    userId: session.user_id,
+    action: 'password_reset',
+    category: 'user_management',
+    details: { targetUserId: id },
+    ...clientInfo,
+    success: true
+  })
+
+  return res.status(200).json({ success: true, message: 'Senha redefinida com sucesso' })
 }
 
-// ============================================
-// HANDLER PRINCIPAL
-// ============================================
+// Get audit logs handler
+async function handleGetLogs(req: VercelRequest, res: VercelResponse) {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  const { category, limit } = req.query
 
+  if (!token) {
+    return res.status(401).json({ error: 'Não autenticado' })
+  }
+
+  const session = await sessionDB.findByToken(token)
+
+  if (!session || session.role !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' })
+  }
+
+  const logs = await auditDB.list({
+    category: category as string,
+    limit: parseInt(limit as string) || 100
+  })
+
+  return res.status(200).json({ logs })
+}
+
+// Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -502,7 +621,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return handleChangePassword(req, res)
       case 'verify-production':
         return handleVerifyProductionPassword(req, res)
-      // User management actions (consolidado de users.ts)
+      // User management actions
       case 'list':
         return handleListUsers(req, res)
       case 'create':
@@ -513,11 +632,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return handleDeleteUser(req, res)
       case 'reset-password':
         return handleResetPassword(req, res)
+      // Logs
+      case 'logs':
+        return handleGetLogs(req, res)
       default:
         return res.status(400).json({ error: 'Ação inválida' })
     }
   } catch (error) {
-    console.error('Auth error:', error)
-    return res.status(500).json({ error: 'Erro interno do servidor' })
+    console.error('Auth API error:', error)
+    return res.status(500).json({
+      error: 'Erro interno do servidor',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    })
   }
 }

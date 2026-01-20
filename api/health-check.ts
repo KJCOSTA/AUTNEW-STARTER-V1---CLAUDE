@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { healthCheckDB, sessionDB, auditDB } from './lib/db'
 
 interface APIHealthResult {
   name: string
@@ -465,11 +466,24 @@ async function testAPI(config: typeof API_CONFIGS[0]): Promise<APIHealthResult> 
   return result
 }
 
+// Get user ID from token if available
+async function getUserIdFromToken(req: VercelRequest): Promise<string | undefined> {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (!token) return undefined
+
+  try {
+    const session = await sessionDB.findByToken(token)
+    return session?.user_id
+  } catch {
+    return undefined
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end()
@@ -480,6 +494,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { streaming } = req.query
+  const userId = await getUserIdFromToken(req)
 
   try {
     // For streaming responses (Server-Sent Events)
@@ -504,6 +519,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         configured: allResults.filter((r) => r.configured).length,
         connected: allResults.filter((r) => r.connected).length,
         failed: allResults.filter((r) => r.configured && !r.connected).length,
+      }
+
+      // Log to database
+      try {
+        await healthCheckDB.log({
+          userId,
+          results: allResults,
+          summary,
+          criticalFailures,
+          success: criticalFailures.length === 0
+        })
+
+        await auditDB.log({
+          userId,
+          action: 'health_check_executed',
+          category: 'health_check',
+          details: { summary, criticalFailures },
+          success: criticalFailures.length === 0
+        })
+      } catch (logError) {
+        console.error('Failed to log health check:', logError)
       }
 
       res.write(`data: ${JSON.stringify({
@@ -533,6 +569,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       configured: results.filter((r) => r.configured).length,
       connected: results.filter((r) => r.connected).length,
       failed: results.filter((r) => r.configured && !r.connected).length,
+    }
+
+    // Log to database
+    try {
+      await healthCheckDB.log({
+        userId,
+        results,
+        summary,
+        criticalFailures,
+        success: criticalFailures.length === 0
+      })
+
+      await auditDB.log({
+        userId,
+        action: 'health_check_executed',
+        category: 'health_check',
+        details: { summary, criticalFailures },
+        success: criticalFailures.length === 0
+      })
+    } catch (logError) {
+      console.error('Failed to log health check:', logError)
     }
 
     const response: HealthCheckResponse = {
