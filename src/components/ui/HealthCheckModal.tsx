@@ -14,6 +14,9 @@ import {
   Zap,
   RefreshCw,
   X,
+  Clock,
+  AlertOctagon,
+  Terminal,
 } from 'lucide-react'
 import { Button } from './Button'
 
@@ -22,10 +25,15 @@ interface APIHealthResult {
   envVar: string
   configured: boolean
   connected: boolean
+  testType: 'real_call' | 'endpoint_check'
+  responseTime?: number
   error?: string
-  errorType?: 'missing_key' | 'invalid_key' | 'network_error' | 'quota_exceeded' | 'unknown'
+  errorCode?: string
+  errorType?: 'missing_key' | 'invalid_key' | 'permission_denied' | 'model_not_found' | 'quota_exceeded' | 'rate_limited' | 'network_error' | 'timeout' | 'unknown'
+  technicalDetails?: string
   documentation?: string
   fixSteps?: string[]
+  critical: boolean
 }
 
 interface HealthCheckResponse {
@@ -38,6 +46,7 @@ interface HealthCheckResponse {
     connected: number
     failed: number
   }
+  timestamp: string
 }
 
 interface HealthCheckModalProps {
@@ -47,6 +56,18 @@ interface HealthCheckModalProps {
 }
 
 type CheckStatus = 'idle' | 'running' | 'completed' | 'failed'
+
+const ERROR_TYPE_LABELS: Record<string, { label: string; color: string; icon: typeof AlertTriangle }> = {
+  missing_key: { label: 'Variável Ausente', color: 'text-status-warning', icon: AlertTriangle },
+  invalid_key: { label: 'Key Inválida', color: 'text-status-error', icon: XCircle },
+  permission_denied: { label: 'Sem Permissão', color: 'text-status-error', icon: Shield },
+  model_not_found: { label: 'Modelo Não Encontrado', color: 'text-orange-400', icon: AlertOctagon },
+  quota_exceeded: { label: 'Cota Excedida', color: 'text-status-warning', icon: AlertTriangle },
+  rate_limited: { label: 'Rate Limited', color: 'text-status-warning', icon: Clock },
+  network_error: { label: 'Erro de Rede', color: 'text-status-error', icon: XCircle },
+  timeout: { label: 'Timeout', color: 'text-status-warning', icon: Clock },
+  unknown: { label: 'Erro Desconhecido', color: 'text-status-error', icon: AlertOctagon },
+}
 
 export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModalProps) {
   const [status, setStatus] = useState<CheckStatus>('idle')
@@ -70,9 +91,14 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
 
       // Simulate progressive loading for better UX
       for (let i = 0; i < data.results.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 300))
+        await new Promise((resolve) => setTimeout(resolve, 400))
         setCurrentIndex(i + 1)
         setResults((prev) => [...prev, data.results[i]])
+
+        // Auto-expand errors for failed APIs
+        if (!data.results[i].connected) {
+          setExpandedErrors((prev) => ({ ...prev, [data.results[i].envVar]: true }))
+        }
       }
 
       await new Promise((resolve) => setTimeout(resolve, 500))
@@ -137,6 +163,8 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
     }
   }
 
+  const totalAPIs = 9 // Total number of APIs we're testing
+
   if (!isOpen) return null
 
   return (
@@ -151,7 +179,7 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-card border border-white/10 rounded-2xl w-full max-w-2xl my-8 shadow-2xl overflow-hidden"
+          className="bg-card border border-white/10 rounded-2xl w-full max-w-3xl my-8 shadow-2xl overflow-hidden"
         >
           {/* Header */}
           <div className="p-6 border-b border-white/10 bg-gradient-to-r from-accent-purple/10 to-accent-blue/10">
@@ -162,10 +190,10 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-text-primary">
-                    Health Check de APIs
+                    Health Check - Conexão Real
                   </h2>
                   <p className="text-sm text-text-secondary">
-                    Verificando conexões antes de ativar produção
+                    Testando autenticação real com cada API
                   </p>
                 </div>
               </div>
@@ -182,18 +210,19 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
           {status === 'running' && (
             <div className="px-6 py-4 border-b border-white/10">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-text-secondary">
-                  Verificando APIs...
+                <span className="text-sm text-text-secondary flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Testando conexões reais...
                 </span>
                 <span className="text-sm font-medium text-text-primary">
-                  {currentIndex} / {results.length > 0 ? Math.max(currentIndex, 9) : 9}
+                  {currentIndex} / {totalAPIs}
                 </span>
               </div>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-gradient-to-r from-accent-purple to-accent-blue"
                   initial={{ width: 0 }}
-                  animate={{ width: `${(currentIndex / 9) * 100}%` }}
+                  animate={{ width: `${(currentIndex / totalAPIs) * 100}%` }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
@@ -201,7 +230,7 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
           )}
 
           {/* Results List */}
-          <div className="p-6 max-h-[400px] overflow-y-auto">
+          <div className="p-6 max-h-[450px] overflow-y-auto">
             <div className="space-y-3">
               {results.map((result, index) => (
                 <motion.div
@@ -219,20 +248,34 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                       <div className="flex items-center gap-3">
                         {getStatusIcon(result)}
                         <div>
-                          <p className="font-medium text-text-primary">{result.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-text-primary">{result.name}</p>
+                            {result.critical && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-medium bg-status-error/20 text-status-error rounded">
+                                CRÍTICO
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-text-secondary font-mono">
                             {result.envVar}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {/* Response Time */}
+                        {result.responseTime && (
+                          <span className="text-xs text-text-secondary">
+                            {result.responseTime}ms
+                          </span>
+                        )}
+
                         {result.connected ? (
                           <span className="px-2 py-1 bg-status-success/20 text-status-success text-xs font-medium rounded-lg">
-                            Conectado
+                            ✓ Conectado
                           </span>
                         ) : result.configured ? (
                           <span className="px-2 py-1 bg-status-error/20 text-status-error text-xs font-medium rounded-lg">
-                            Falha
+                            ✗ Falha
                           </span>
                         ) : (
                           <span className="px-2 py-1 bg-status-warning/20 text-status-warning text-xs font-medium rounded-lg">
@@ -258,47 +301,112 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                           exit={{ height: 0, opacity: 0 }}
                           className="overflow-hidden"
                         >
-                          <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+                          <div className="mt-4 pt-4 border-t border-white/10 space-y-4">
+                            {/* Error Type Badge */}
+                            {result.errorType && ERROR_TYPE_LABELS[result.errorType] && (
+                              <div className="flex items-center gap-2">
+                                {(() => {
+                                  const ErrorIcon = ERROR_TYPE_LABELS[result.errorType!].icon
+                                  return <ErrorIcon className={`w-4 h-4 ${ERROR_TYPE_LABELS[result.errorType!].color}`} />
+                                })()}
+                                <span className={`text-sm font-medium ${ERROR_TYPE_LABELS[result.errorType].color}`}>
+                                  {ERROR_TYPE_LABELS[result.errorType].label}
+                                </span>
+                              </div>
+                            )}
+
                             {/* Error Message */}
                             {result.error && (
                               <div className="p-3 bg-status-error/10 border border-status-error/20 rounded-lg">
-                                <p className="text-sm text-status-error font-mono">
+                                <p className="text-sm font-medium text-status-error mb-1">
+                                  Erro:
+                                </p>
+                                <p className="text-sm text-text-primary">
                                   {result.error}
                                 </p>
+                              </div>
+                            )}
+
+                            {/* Technical Details */}
+                            {result.technicalDetails && (
+                              <div className="p-3 bg-background/50 border border-white/10 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
+                                    <Terminal className="w-3 h-3" />
+                                    Detalhes Técnicos:
+                                  </p>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      copyToClipboard(result.technicalDetails!, 'technical')
+                                    }}
+                                    className="text-xs text-text-secondary hover:text-text-primary flex items-center gap-1"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    {copiedText === 'technical' ? 'Copiado!' : 'Copiar'}
+                                  </button>
+                                </div>
+                                <pre className="text-xs text-text-secondary font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                                  {result.technicalDetails}
+                                </pre>
                               </div>
                             )}
 
                             {/* Fix Steps */}
                             {result.fixSteps && result.fixSteps.length > 0 && (
                               <div className="space-y-2">
-                                <p className="text-sm font-medium text-text-primary">
+                                <p className="text-sm font-medium text-accent-blue flex items-center gap-2">
+                                  <Zap className="w-4 h-4" />
                                   Como corrigir:
                                 </p>
-                                <ol className="space-y-1.5">
-                                  {result.fixSteps.map((step, i) => (
-                                    <li
-                                      key={i}
-                                      className="text-xs text-text-secondary flex items-start gap-2"
-                                    >
-                                      <span className="text-accent-blue">{i + 1}.</span>
-                                      <span>{step.replace(/^\d+\.\s*/, '')}</span>
-                                    </li>
-                                  ))}
+                                <ol className="space-y-2 pl-1">
+                                  {result.fixSteps.map((step, i) => {
+                                    // Check if step is a link
+                                    if (step.startsWith('Link:')) {
+                                      const url = step.replace('Link:', '').trim()
+                                      return (
+                                        <li key={i}>
+                                          <a
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-blue/10 text-accent-blue text-xs font-medium rounded-lg hover:bg-accent-blue/20 transition-colors"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="w-3 h-3" />
+                                            Abrir Documentação
+                                          </a>
+                                        </li>
+                                      )
+                                    }
+                                    return (
+                                      <li
+                                        key={i}
+                                        className="text-sm text-text-secondary flex items-start gap-2"
+                                      >
+                                        <span className="w-5 h-5 rounded-full bg-accent-blue/20 text-accent-blue text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                                          {i + 1}
+                                        </span>
+                                        <span>{step}</span>
+                                      </li>
+                                    )
+                                  })}
                                 </ol>
                               </div>
                             )}
 
                             {/* Action Buttons */}
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 pt-2">
                               {result.documentation && (
                                 <a
                                   href={result.documentation}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-blue/10 text-accent-blue text-xs font-medium rounded-lg hover:bg-accent-blue/20 transition-colors"
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-accent-purple/10 text-accent-purple text-xs font-medium rounded-lg hover:bg-accent-purple/20 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <ExternalLink className="w-3 h-3" />
-                                  Documentação
+                                  {result.documentation.replace('https://', '').split('/')[0]}
                                 </a>
                               )}
                               <button
@@ -306,7 +414,7 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                                   e.stopPropagation()
                                   copyToClipboard(result.envVar, result.envVar)
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-text-secondary text-xs font-medium rounded-lg hover:bg-white/10 transition-colors"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white/5 text-text-secondary text-xs font-medium rounded-lg hover:bg-white/10 transition-colors"
                               >
                                 <Copy className="w-3 h-3" />
                                 {copiedText === result.envVar ? 'Copiado!' : 'Copiar variável'}
@@ -321,9 +429,9 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
               ))}
 
               {/* Loading Placeholders */}
-              {status === 'running' && results.length < 9 && (
+              {status === 'running' && results.length < totalAPIs && (
                 <>
-                  {Array.from({ length: 9 - results.length }).map((_, i) => (
+                  {Array.from({ length: totalAPIs - results.length }).map((_, i) => (
                     <div
                       key={`placeholder-${i}`}
                       className="p-4 rounded-xl border border-white/10 bg-white/5 animate-pulse"
@@ -355,7 +463,7 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                   <p className="text-xs text-text-secondary">Conectados</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-status-warning">{summary.configured - summary.connected}</p>
+                  <p className="text-2xl font-bold text-status-error">{summary.failed}</p>
                   <p className="text-xs text-text-secondary">Com Falha</p>
                 </div>
                 <div className="text-center">
@@ -375,7 +483,7 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                     <Shield className="w-5 h-5 text-status-error flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-status-error mb-1">
-                        APIs Críticas com Falha
+                        ⛔ APIs Críticas com Falha - Produção Bloqueada
                       </p>
                       <p className="text-sm text-text-secondary mb-2">
                         As seguintes APIs são obrigatórias para o modo produção:
@@ -385,6 +493,9 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                           <li key={name}>{name}</li>
                         ))}
                       </ul>
+                      <p className="text-xs text-text-secondary mt-3">
+                        Corrija os erros acima e tente novamente.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -394,7 +505,7 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                     <Zap className="w-5 h-5 text-status-success flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-status-success mb-1">
-                        Pronto para Produção!
+                        ✅ Pronto para Produção!
                       </p>
                       <p className="text-sm text-text-secondary">
                         Todas as APIs críticas estão funcionando. Você pode ativar o modo produção com segurança.
@@ -410,6 +521,7 @@ export function HealthCheckModal({ isOpen, onClose, onSuccess }: HealthCheckModa
                   variant="ghost"
                   onClick={() => {
                     setStatus('idle')
+                    setExpandedErrors({})
                     runHealthCheck()
                   }}
                   icon={<RefreshCw className="w-4 h-4" />}
