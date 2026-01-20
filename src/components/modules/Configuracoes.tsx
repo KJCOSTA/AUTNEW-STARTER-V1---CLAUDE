@@ -41,6 +41,7 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
+  HealthCheckModal,
 } from '../ui'
 import type {
   OperationMode,
@@ -189,6 +190,7 @@ export function Configuracoes() {
   // Custom mode modal state
   const [showCustomModeModal, setShowCustomModeModal] = useState(false)
   const [showTestModeConfirm, setShowTestModeConfirm] = useState(false)
+  const [showHealthCheckModal, setShowHealthCheckModal] = useState(false)
   const [customModeConfig, setCustomModeConfig] = useState<CustomModeConfig>({
     nome: 'Meu Modo Personalizado',
     roteiro: 'gemini',
@@ -1050,8 +1052,8 @@ export function Configuracoes() {
                 <button
                   onClick={() => {
                     if (configuracoes.appMode === 'test') {
-                      // Going to production - needs confirmation
-                      setShowTestModeConfirm(true)
+                      // Going to production - run health check first
+                      setShowHealthCheckModal(true)
                     } else {
                       // Going to test mode - no confirmation needed
                       setConfiguracoes({ appMode: 'test' })
@@ -1587,6 +1589,17 @@ export function Configuracoes() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Health Check Modal */}
+      <HealthCheckModal
+        isOpen={showHealthCheckModal}
+        onClose={() => setShowHealthCheckModal(false)}
+        onSuccess={() => {
+          setShowHealthCheckModal(false)
+          setConfiguracoes({ appMode: 'production' })
+          addToast({ type: 'success', message: 'Modo Produção ativado - APIs reais!' })
+        }}
+      />
 
       {/* Edit API Key Modal */}
       <AnimatePresence>
