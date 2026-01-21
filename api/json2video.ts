@@ -16,19 +16,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (action === 'test' || action === 'test-connection') {
-      try {
-        const response = await fetch(`${JSON2VIDEO_API_URL}/account`, {
-          headers: { 'x-api-key': apiKey },
-        })
-        if (response.ok) {
-          return res.status(200).json({ success: true, connected: true, message: 'JSON2Video conectado!' })
-        } else {
-          const errorData = await response.json().catch(() => ({}))
-          return res.status(400).json({ success: false, connected: false, message: errorData.message || 'Erro na conexão com JSON2Video' })
-        }
-      } catch (error: any) {
-        console.error('JSON2Video connection test failed:', error)
-        return res.status(500).json({ success: false, connected: false, message: `Network error: ${error.message}` })
+      const response = await fetch(`${JSON2VIDEO_API_URL}/account`, {
+        headers: { 'x-api-key': apiKey },
+      })
+      if (response.ok) {
+        return res.status(200).json({ success: true, connected: true, message: 'JSON2Video conectado!' })
+      } else {
+        return res.status(400).json({ success: false, connected: false, message: 'Erro na conexão com JSON2Video' })
       }
     }
 
@@ -77,84 +71,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Submit render job
-    let result
-    try {
-      const response = await fetch(`${JSON2VIDEO_API_URL}/movies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-        },
-        body: JSON.stringify(project),
-      })
+    const response = await fetch(`${JSON2VIDEO_API_URL}/movies`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify(project),
+    })
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        console.error('JSON2Video render submission failed:', error)
-        return res.status(400).json({ error: error.message || 'Failed to start render' })
-      }
-
-      result = await response.json()
-    } catch (error: any) {
-      console.error('Failed to submit render job:', error)
-      return res.status(500).json({ error: `Failed to submit render job: ${error.message}` })
+    if (!response.ok) {
+      const error = await response.json()
+      return res.status(400).json({ error: error.message || 'Failed to start render' })
     }
+
+    const result = await response.json()
 
     // Poll for completion (in production, use webhooks)
     let videoUrl = null
     let attempts = 0
     const maxAttempts = 60 // 5 minutes max wait
-    const pollInterval = 5000 // 5 seconds
-    const startTime = Date.now()
-    const maxWaitTime = maxAttempts * pollInterval // 5 minutes in milliseconds
 
     while (!videoUrl && attempts < maxAttempts) {
-      // Check if we've exceeded the maximum wait time
-      if (Date.now() - startTime > maxWaitTime) {
-        console.error('Video render exceeded maximum wait time')
-        return res.status(408).json({ error: 'Render timeout: exceeded maximum wait time of 5 minutes' })
-      }
+      await new Promise((r) => setTimeout(r, 5000))
 
-      await new Promise((r) => setTimeout(r, pollInterval))
+      const statusResponse = await fetch(`${JSON2VIDEO_API_URL}/movies/${result.project}`, {
+        headers: { 'x-api-key': apiKey },
+      })
 
-      try {
-        const statusResponse = await fetch(`${JSON2VIDEO_API_URL}/movies/${result.project}`, {
-          headers: { 'x-api-key': apiKey },
-        })
+      const status = await statusResponse.json()
 
-        if (!statusResponse.ok) {
-          console.error('Failed to check render status:', statusResponse.statusText)
-          attempts++
-          continue // Continue polling despite errors
-        }
-
-        const status = await statusResponse.json()
-
-        if (status.status === 'done') {
-          videoUrl = status.url
-          if (!videoUrl) {
-            console.error('Render completed but no video URL returned')
-            return res.status(500).json({ error: 'Render completed but no video URL returned' })
-          }
-        } else if (status.status === 'error') {
-          console.error('Video render failed:', status.error || 'Unknown error')
-          return res.status(400).json({ error: status.error || 'Render failed' })
-        } else if (status.status === 'failed') {
-          console.error('Video render job failed')
-          return res.status(400).json({ error: 'Render job failed' })
-        }
-        // Continue polling for other statuses (processing, queued, etc.)
-      } catch (error: any) {
-        console.error('Error polling render status:', error)
-        // Continue polling despite errors, but increment attempts
+      if (status.status === 'done') {
+        videoUrl = status.url
+      } else if (status.status === 'error') {
+        return res.status(400).json({ error: 'Render failed' })
       }
 
       attempts++
     }
 
     if (!videoUrl) {
-      console.error('Video render timeout after maximum attempts')
-      return res.status(408).json({ error: `Render timeout: polling exceeded ${maxAttempts} attempts` })
+      return res.status(408).json({ error: 'Render timeout' })
     }
 
     return res.status(200).json({ videoUrl })

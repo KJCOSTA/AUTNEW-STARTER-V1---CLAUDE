@@ -1,4 +1,3 @@
-import { validateEnv } from "./_validateEnv"; validateEnv(["GOOGLE_TTS_KEY"]);
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 // Edge TTS voices for Brazilian Portuguese
