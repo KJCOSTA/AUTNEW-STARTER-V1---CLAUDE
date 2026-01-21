@@ -2,10 +2,10 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import type { User, LoginCredentials } from '../types'
 
 // ============================================
-// BYPASS DE AUTENTICAÇÃO - MODO DESENVOLVIMENTO
-// Mude para false quando o banco estiver funcionando
+// AUTENTICAÇÃO COM POSTGRESQL
+// Banco de dados real está funcionando
 // ============================================
-const BYPASS_AUTH = true
+const BYPASS_AUTH = false
 
 const BYPASS_USER: User = {
   id: 'bypass-admin-001',
