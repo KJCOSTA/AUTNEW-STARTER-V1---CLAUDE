@@ -232,6 +232,40 @@ export function LoginPage() {
             </Button>
           </form>
 
+                   {/* GitHub Login Button */}
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <p className="text-sm text-text-secondary text-center mb-4">
+              Ou entre com
+            </p>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              size="lg"
+              onClick={() => {
+                window.location.href =
+                  'https://ep-curly-credit-acugheqo.neonauth.sa-east-1.aws.neon.tech/neondb/auth/signin/github?callbackUrl=' +
+                  encodeURIComponent(window.location.origin + '/dashboard')
+              }}
+            >
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504..."
+                />
+              </svg>
+              Entrar com GitHub
+            </Button>
+          </div>
+
+
+
           {/* Dev Login Button - Apenas em desenvolvimento */}
           {isDevelopment && (
             <div className="mt-6 pt-6 border-t border-white/10">

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
-import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db'
+import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db.js'
 
 // Constants
 const ADMIN_EMAIL = 'admin@autnew.com'
