@@ -1,45 +1,49 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { requireEnv } from './_env';
+import { getEnv } from './_env';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const topic = req.body?.topic || 'Plano Emergencial AUTNEW';
+    const topic = req.body?.topic || 'Plano Estratégico AUTNEW';
 
-    // ENV VALIDATION (FAIL FAST)
-    const openaiKey = requireEnv('OPENAI_API_KEY');
-    const youtubeKey = requireEnv('YOUTUBE_API_KEY');
-    const channelId = requireEnv('CHANNEL_ID');
+    // 🔐 ENV (FAIL FAST)
+    const OPENAI_API_KEY = getEnv('OPENAI_API_KEY');
+    const YOUTUBE_API_KEY = getEnv('YOUTUBE_API_KEY');
+    const CHANNEL_ID = getEnv('CHANNEL_ID');
 
-    // YOUTUBE REAL CALL
+    // 📊 YOUTUBE — REAL
     const ytRes = await fetch(
-      \`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=\${channelId}&key=\${youtubeKey}\`
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${CHANNEL_ID}&key=${YOUTUBE_API_KEY}`
     );
-    if (!ytRes.ok) throw new Error('YouTube API failed');
-    const ytData = await ytRes.json();
+    if (!ytRes.ok) throw new Error(`YouTube API failed: ${ytRes.status}`);
+    const yt = await ytRes.json();
+    if (!yt.items?.[0]) throw new Error('YouTube API returned no channel');
 
-    // OPENAI REAL CALL (MINIMAL, SEM FRESCURA)
+    // 🧠 OPENAI — REAL
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': \`Bearer \${openaiKey}\`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: 'Você é o AUTNEW, gerador de planos estratégicos executáveis.' },
-          { role: 'user', content: \`Gere um plano de execução real para: \${topic}\` }
+          { role: 'user', content: `Gere um plano REAL, acionável e estruturado para: ${topic}` }
         ]
       })
     });
-    if (!aiRes.ok) throw new Error('OpenAI API failed');
-    const aiData = await aiRes.json();
+    if (!aiRes.ok) throw new Error(`OpenAI API failed: ${aiRes.status}`);
+    const ai = await aiRes.json();
 
     return res.status(200).json({
       success: true,
-      source: 'REAL_APIS',
-      youtube: ytData.items?.[0]?.statistics,
-      plan: aiData.choices?.[0]?.message?.content
+      mode: 'REAL_APIS',
+      channel: {
+        title: yt.items[0].snippet.title,
+        stats: yt.items[0].statistics
+      },
+      plan: ai.choices?.[0]?.message?.content
     });
 
   } catch (err: any) {
@@ -47,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({
       success: false,
       error: err.message,
-      hint: 'Alguma ENV não está sendo injetada corretamente no runtime'
+      hint: 'Alguma ENV não está disponível no runtime da Vercel'
     });
   }
 }
