@@ -41,12 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         // Verify token with backend
-        const response = await fetch('/api/auth?action=session', {
+        const response = await fetch('/api/auth', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
-          }
+          },
+          body: JSON.stringify({ action: 'session' })
         })
 
         if (response.ok) {
@@ -82,7 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(credentials)
+        body: JSON.stringify({
+          action: 'login',
+          email: credentials.email,
+          senha: credentials.password
+        })
       })
 
       const data = await response.json()
@@ -111,12 +116,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (token) {
         // Call backend to invalidate session
-        await fetch('/api/auth?action=logout', {
+        await fetch('/api/auth', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
-          }
+          },
+          body: JSON.stringify({ action: 'logout' })
         })
       }
     } catch (error) {
@@ -138,15 +144,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Não autenticado' }
       }
 
-      const response = await fetch('/api/auth?action=change-password', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          currentPassword,
-          newPassword
+          action: 'change-password',
+          senhaAtual: currentPassword,
+          novaSenha: newPassword
         })
       })
 
@@ -180,13 +187,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'Não autenticado' }
       }
 
-      const response = await fetch('/api/auth?action=verify-production-password', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({
+          action: 'verify-production',
+          senha: password
+        })
       })
 
       const data = await response.json()
