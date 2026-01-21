@@ -1,26 +1,38 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button, Input } from '../ui'
+
+interface ErrorInfo {
+  message: string
+  code?: string
+  details?: string
+}
 
 export function LoginPage() {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
+  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null)
+  const [showErrorDetails, setShowErrorDetails] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    setErrorInfo(null)
+    setShowErrorDetails(false)
     setIsLoading(true)
 
     const result = await login({ email, senha })
 
     if (!result.success) {
-      setError(result.error || 'Erro ao fazer login')
+      setErrorInfo({
+        message: result.error || 'Erro ao fazer login',
+        code: result.errorCode,
+        details: result.errorDetails
+      })
     }
 
     setIsLoading(false)
@@ -28,13 +40,22 @@ export function LoginPage() {
 
   // Entrar diretamente como admin (modo desenvolvimento)
   const handleDevLogin = async () => {
-    setError('')
+    setErrorInfo(null)
+    setShowErrorDetails(false)
     setIsLoading(true)
     const result = await login({ email: 'kleiton@autnew.com', senha: 'jangada' })
     if (!result.success) {
-      setError(result.error || 'Erro ao fazer login')
+      setErrorInfo({
+        message: result.error || 'Erro ao fazer login',
+        code: result.errorCode,
+        details: result.errorDetails
+      })
     }
     setIsLoading(false)
+  }
+
+  const openDiagnostics = () => {
+    window.open('/api/db-health', '_blank')
   }
 
   return (
@@ -75,14 +96,78 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Error Message */}
-            {error && (
+            {errorInfo && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-status-error/10 border border-status-error/30 rounded-xl flex items-start gap-3"
+                className="p-4 bg-status-error/10 border border-status-error/30 rounded-xl"
               >
-                <AlertCircle className="w-5 h-5 text-status-error flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-status-error">{error}</p>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-status-error flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-status-error">{errorInfo.message}</p>
+
+                    {/* Show details toggle */}
+                    {(errorInfo.code || errorInfo.details) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowErrorDetails(!showErrorDetails)}
+                        className="mt-2 text-xs text-status-error/70 hover:text-status-error flex items-center gap-1 transition-colors"
+                      >
+                        {showErrorDetails ? (
+                          <>
+                            <ChevronUp className="w-3 h-3" />
+                            Ocultar detalhes
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-3 h-3" />
+                            Ver detalhes do erro
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded error details */}
+                <AnimatePresence>
+                  {showErrorDetails && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 pt-3 border-t border-status-error/20 space-y-2">
+                        {errorInfo.code && (
+                          <div className="text-xs">
+                            <span className="text-text-secondary">Codigo:</span>{' '}
+                            <code className="text-status-error bg-status-error/10 px-1.5 py-0.5 rounded">
+                              {errorInfo.code}
+                            </code>
+                          </div>
+                        )}
+                        {errorInfo.details && (
+                          <div className="text-xs">
+                            <span className="text-text-secondary">Detalhes:</span>{' '}
+                            <span className="text-status-error/80">{errorInfo.details}</span>
+                          </div>
+                        )}
+
+                        {/* Diagnostics link */}
+                        <button
+                          type="button"
+                          onClick={openDiagnostics}
+                          className="mt-2 text-xs text-accent-blue hover:text-accent-blue/80 flex items-center gap-1 transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Abrir diagnostico do banco de dados
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
 
