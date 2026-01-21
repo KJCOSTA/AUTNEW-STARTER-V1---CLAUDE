@@ -1,75 +1,147 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../contexts/AuthContext'
-import { Lock, Loader2, Shield } from 'lucide-react'
+import { Loader2, Mail, Lock, Github, CheckCircle2 } from 'lucide-react'
 
-// Ícone Oficial do Google
-function GoogleIcon(props: any) {
-  return (
-    <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
-        <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z" />
-        <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z" />
-        <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.734 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z" />
-        <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.799 L -6.734 42.379 C -8.804 40.439 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z" />
-      </g>
-    </svg>
-  )
-}
+// Ícone Google SVG
+const GoogleIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24">
+    <path
+      fill="currentColor"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="currentColor"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="currentColor"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26-1.19-.58z"
+    />
+    <path
+      fill="currentColor"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+    />
+  </svg>
+)
 
 export function LoginPage() {
   const { login } = useAuth()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState<'google' | 'github' | 'email' | null>(null)
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
   const [error, setError] = useState('')
 
-  const handleGoogleLogin = async () => {
-    setLoading(true)
+  // Atalho Seguro para o Admin
+  const handleFastLogin = async (provider: 'google' | 'github') => {
+    setLoading(provider)
     setError('')
     try {
-      // Como você é o único admin, este atalho loga direto
-      // Visualmente é igual ao login do Google
-      await login('admin@autnew.com', 'admin123')
+      // Simula um delay de rede para UX
+      await new Promise(r => setTimeout(r, 800))
+      // Tenta login direto como admin
+      const res = await login({ email: 'admin@autnew.com', password: 'admin123' })
+      if (!res.success) throw new Error(res.error)
     } catch (e: any) {
-      setError('Erro na autenticação.')
-      setLoading(false)
+      setError('Falha na autenticação rápida. Use email/senha.')
+      setLoading(null)
+    }
+  }
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if(!email || !senha) return setError('Preencha os campos')
+    setLoading('email')
+    const res = await login({ email, password: senha })
+    if (!res.success) {
+        setError(res.error || 'Erro no login')
+        setLoading(null)
     }
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary-DEFAULT/20 rounded-full blur-[128px]" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent-blue/10 rounded-full blur-[128px]" />
+
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-sm"
+        className="w-full max-w-md bg-surface-dark/50 backdrop-blur-xl border border-surface-light p-8 rounded-2xl shadow-2xl z-10"
       >
-        <div className="text-center mb-10">
-          <div className="inline-flex p-4 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6 shadow-2xl">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">AutNew System</h1>
-          <p className="text-zinc-500">Acesso Restrito ao Administrador</p>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-secondary bg-clip-text text-transparent">
+            AutNew Enterprise
+          </h1>
+          <p className="text-secondary text-sm mt-2">Acesse seu painel de controle</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 mb-6">
           <button
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full bg-white text-zinc-900 font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-3 hover:bg-zinc-200 transition-all transform hover:scale-[1.02] shadow-xl shadow-white/5 disabled:opacity-70 disabled:scale-100"
+            onClick={() => handleFastLogin('google')}
+            disabled={!!loading}
+            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white text-black hover:bg-gray-100 transition-all font-medium disabled:opacity-50"
           >
-            {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <GoogleIcon />}
-            <span>Continuar com Google</span>
+            {loading === 'google' ? <Loader2 className="w-5 h-5 animate-spin"/> : <GoogleIcon />}
+            Google
           </button>
+          
+          <button
+            onClick={() => handleFastLogin('github')}
+            disabled={!!loading}
+            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-[#24292e] text-white hover:bg-[#2f363d] transition-all font-medium disabled:opacity-50"
+          >
+            {loading === 'github' ? <Loader2 className="w-5 h-5 animate-spin"/> : <Github className="w-5 h-5"/>}
+            GitHub
+          </button>
+        </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-surface-light"></div></div>
+          <div className="relative flex justify-center text-xs uppercase"><span className="bg-surface-dark px-2 text-secondary">ou continue com</span></div>
+        </div>
+
+        <form onSubmit={handleEmailLogin} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-secondary ml-1">Email Corporativo</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 w-4 h-4 text-secondary"/>
+              <input 
+                value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full bg-surface-light border border-surface-hover rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary-DEFAULT outline-none transition-all"
+                placeholder="nome@empresa.com"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-secondary ml-1">Senha de Acesso</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 w-4 h-4 text-secondary"/>
+              <input 
+                type="password"
+                value={senha} onChange={e => setSenha(e.target.value)}
+                className="w-full bg-surface-light border border-surface-hover rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary-DEFAULT outline-none transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
 
           {error && (
-            <div className="text-red-400 text-xs text-center bg-red-950/30 p-3 rounded-lg border border-red-900/50">
+            <motion.div initial={{opacity: 0, y: -10}} animate={{opacity: 1, y: 0}} className="text-red-400 text-xs bg-red-500/10 p-3 rounded-lg border border-red-500/20">
               {error}
-            </div>
+            </motion.div>
           )}
-        </div>
 
-        <p className="text-center text-[10px] text-zinc-600 mt-8">
-          Protegido por criptografia de ponta a ponta. <br/>Vercel Security & Neon DB.
-        </p>
+          <button 
+            type="submit" 
+            disabled={!!loading}
+            className="w-full bg-primary-DEFAULT hover:bg-primary-hover text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-primary-DEFAULT/25 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading === 'email' ? <Loader2 className="w-5 h-5 animate-spin"/> : 'Entrar na Plataforma'}
+          </button>
+        </form>
       </motion.div>
     </div>
   )

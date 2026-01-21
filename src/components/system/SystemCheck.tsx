@@ -73,46 +73,34 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
   const criticalFailure = requiredServices.some(s => results[s.id] && !results[s.id].success && !results[s.id].missingEnv)
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white flex items-center justify-center p-4 font-mono">
+    <div className="min-h-screen bg-[#030712] text-white flex items-center justify-center p-4 font-mono">
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
         <div className="lg:col-span-1 space-y-6">
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl backdrop-blur-xl"
+            className="bg-surface-dark/50 border border-surface-light p-6 rounded-2xl backdrop-blur-xl"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                <ShieldCheck className="w-8 h-8 text-purple-400" />
+              <div className="p-3 bg-primary-DEFAULT/10 rounded-lg border border-primary-DEFAULT/20">
+                <ShieldCheck className="w-8 h-8 text-primary-DEFAULT" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">System Status</h1>
-                <p className="text-xs text-zinc-500 uppercase tracking-wider">Vercel {systemInfo.env || 'Production'}</p>
+                <p className="text-xs text-secondary uppercase tracking-wider">Vercel {systemInfo.env || 'Production'}</p>
               </div>
             </div>
 
             <div className="mb-6">
               <div className="flex justify-between items-end mb-2">
-                <span className="text-sm text-zinc-400">Integridade</span>
+                <span className="text-sm text-secondary">Integridade</span>
                 <span className="text-2xl font-bold text-white">{healthPercent}%</span>
               </div>
-              <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="h-2 bg-surface-light rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${healthPercent}%` }}
-                  className={`h-full ${healthPercent > 80 ? 'bg-green-500' : healthPercent > 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                  className={`h-full ${healthPercent > 80 ? 'bg-success' : healthPercent > 50 ? 'bg-warning' : 'bg-error'}`}
                 />
-              </div>
-            </div>
-
-            <div className="space-y-2 text-xs text-zinc-500 mb-6 border-t border-zinc-800 pt-4">
-              <div className="flex justify-between">
-                <span>Region</span>
-                <span className="text-zinc-300">{systemInfo.region?.toUpperCase() || 'US-EAST'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Latency</span>
-                <span className="text-zinc-300">{results.database?.latency || 0}ms</span>
               </div>
             </div>
 
@@ -120,27 +108,22 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
               onClick={onComplete}
               className={`w-full py-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg ${
                 criticalFailure 
-                  ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' 
-                  : 'bg-white text-black hover:bg-zinc-200 shadow-white/10'
+                  ? 'bg-surface-light text-secondary hover:bg-surface-hover' 
+                  : 'bg-white text-black hover:bg-gray-200 shadow-white/10'
               }`}
             >
               ACESSAR PAINEL <ArrowRight className="w-4 h-4" />
             </button>
           </motion.div>
 
-          <div className="bg-black border border-zinc-800 rounded-xl p-4 h-48 overflow-hidden font-mono text-[10px] text-green-500/80 shadow-inner">
-            <div className="flex items-center gap-2 mb-2 text-zinc-600 border-b border-zinc-900 pb-2">
+          <div className="bg-black border border-surface-light rounded-xl p-4 h-48 overflow-hidden font-mono text-[10px] text-green-500/80 shadow-inner">
+            <div className="flex items-center gap-2 mb-2 text-secondary border-b border-surface-light pb-2">
               <Terminal className="w-3 h-3" /> SYSTEM_LOGS
             </div>
             <div className="flex flex-col justify-end h-full pb-6">
               <AnimatePresence>
                 {logs.map((log, i) => (
-                  <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="truncate"
-                  >
+                  <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="truncate">
                     {log}
                   </motion.div>
                 ))}
@@ -152,36 +135,21 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
 
         <div className="lg:col-span-2 space-y-6">
           {GROUPS.map((group, idx) => (
-            <motion.div 
-              key={idx}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.1 }}
-            >
-              <h3 className="text-xs font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">{group.name}</h3>
+            <motion.div key={idx} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.1 }}>
+              <h3 className="text-xs font-bold text-secondary uppercase mb-3 ml-1 tracking-widest">{group.name}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {group.items.map((s) => {
                   const res = results[s.id]
                   const status = loading ? 'loading' : (res?.success ? 'success' : (res?.missingEnv ? 'warning' : 'error'))
-                  
                   return (
-                    <div 
-                      key={s.id} 
-                      className={`
-                        relative p-4 rounded-xl border flex items-center justify-between transition-all duration-300
-                        ${status === 'success' ? 'bg-green-500/5 border-green-500/20' : ''}
-                        ${status === 'error' ? 'bg-red-500/5 border-red-500/20' : ''}
-                        ${status === 'warning' ? 'bg-zinc-900 border-zinc-800 opacity-60' : ''}
-                        ${status === 'loading' ? 'bg-zinc-900 border-zinc-800' : ''}
-                      `}
-                    >
+                    <div key={s.id} className={`relative p-4 rounded-xl border flex items-center justify-between transition-all duration-300 ${status === 'success' ? 'bg-success/5 border-success/20' : status === 'error' ? 'bg-error/5 border-error/20' : 'bg-surface-dark border-surface-light'}`}>
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${status === 'success' ? 'bg-green-500/10 text-green-400' : status === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                        <div className={`p-2 rounded-lg ${status === 'success' ? 'bg-success/10 text-success' : status === 'error' ? 'bg-error/10 text-error' : 'bg-surface-light text-secondary'}`}>
                           <s.icon className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-bold text-sm text-zinc-200">{s.name}</div>
-                          <div className="text-[10px] text-zinc-500 uppercase">
+                          <div className="font-bold text-sm text-white">{s.name}</div>
+                          <div className="text-[10px] text-secondary uppercase">
                             {status === 'loading' && 'Verificando...'}
                             {status === 'success' && `ONLINE • ${res.latency}ms`}
                             {status === 'error' && `FALHA: ${res.message}`}
@@ -189,24 +157,21 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
                           </div>
                         </div>
                       </div>
-                      
-                      {status === 'success' && <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
-                      {status === 'error' && <div className="w-2 h-2 rounded-full bg-red-500" />}
-                      {status === 'loading' && <RefreshCw className="w-3 h-3 text-zinc-600 animate-spin" />}
+                      {status === 'success' && <div className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
+                      {status === 'error' && <div className="w-2 h-2 rounded-full bg-error" />}
+                      {status === 'loading' && <RefreshCw className="w-3 h-3 text-secondary animate-spin" />}
                     </div>
                   )
                 })}
               </div>
             </motion.div>
           ))}
-          
           <div className="flex justify-end">
-             <button onClick={runCheck} disabled={loading} className="text-xs text-zinc-500 hover:text-white flex items-center gap-2 transition">
+             <button onClick={runCheck} disabled={loading} className="text-xs text-secondary hover:text-white flex items-center gap-2 transition">
                <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Atualizar Diagnóstico
              </button>
           </div>
         </div>
-
       </div>
     </div>
   )

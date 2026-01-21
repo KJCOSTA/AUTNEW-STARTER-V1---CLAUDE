@@ -7,35 +7,31 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Dark Premium Theme
-        background: '#0a0f1a',
-        card: '#1a2234',
-        'card-hover': '#242f47',
+        background: '#030712', // Cinza muito escuro (quase preto)
+        surface: {
+          dark: '#0f172a',     // Slate 900
+          light: '#1e293b',    // Slate 800
+          hover: '#334155'     // Slate 700
+        },
+        primary: {
+          DEFAULT: '#7c3aed',  // Violet 600
+          hover: '#6d28d9',    // Violet 700
+          light: '#8b5cf6'     // Violet 500
+        },
+        secondary: '#64748b',  // Slate 500
         accent: {
-          blue: '#3b82f6',
-          purple: '#8b5cf6',
+          purple: '#c084fc',   // Purple 400
+          pink: '#e879f9',     // Fuchsia 400
+          blue: '#38bdf8'      // Sky 400
         },
-        text: {
-          primary: '#f1f5f9',
-          secondary: '#94a3b8',
-        },
-        status: {
-          success: '#22c55e',
-          warning: '#f59e0b',
-          error: '#ef4444',
-        },
-      },
-      backgroundImage: {
-        'gradient-accent': 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-        'gradient-accent-hover': 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
-      },
-      backdropBlur: {
-        xs: '2px',
+        success: '#22c55e',
+        error: '#ef4444',
+        warning: '#f59e0b'
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'spin-slow': 'spin 2s linear infinite',
-      },
+      }
     },
   },
   plugins: [],

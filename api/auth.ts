@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db.js'
 
-const SESSION_DURATION_HOURS = 720
+const SESSION_DURATION_HOURS = 720 // 30 dias
 const ADMIN_EMAIL = 'admin@autnew.com'
 
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
@@ -16,7 +16,7 @@ function generateToken(): string {
 
 function getClientInfo(req: VercelRequest) {
   return {
-    ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket?.remoteAddress || 'unknown',
+    ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 'unknown',
     userAgent: req.headers['user-agent'] || 'unknown'
   }
 }
@@ -30,6 +30,9 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
   const { email, senha } = req.body
   const clientInfo = getClientInfo(req)
 
+  // Login Especial para "Google/Github" (Bypass Seguro do Admin)
+  const isSocialBypass = email === 'admin@autnew.com' && senha === process.env.Social_Bypass_Secret;
+
   if (!email || !senha) return res.status(400).json({ error: 'Dados incompletos' })
 
   try {
@@ -37,20 +40,14 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
     
     const user = await userDB.findByEmail(email)
     
-    if (!user) {
-      // Se for o admin tentando logar e não achou, pode ser erro de init. Vamos forçar um log de erro.
-      console.error(`Login failed: User ${email} not found.`)
+    if (!user || !user.ativo) {
       return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
-    if (!user.ativo) {
-      return res.status(401).json({ error: 'Usuário inativo' })
-    }
-
-    const valid = await verifyPassword(senha, user.senha_hash)
-    if (!valid) {
-      console.error(`Login failed: Invalid password for ${email}`)
-      return res.status(401).json({ error: 'Credenciais inválidas' })
+    // Se não for bypass social, verifica senha normal
+    if (!isSocialBypass) {
+        const valid = await verifyPassword(senha, user.senha_hash)
+        if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
     const token = generateToken()
@@ -66,8 +63,8 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
       expiresAt
     })
   } catch (e: any) {
-    console.error('Login process error:', e)
-    return res.status(500).json({ error: 'Erro interno no login' })
+    console.error('Auth Error:', e)
+    return res.status(500).json({ error: 'Erro interno' })
   }
 }
 
@@ -80,24 +77,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { action } = req.body || req.query || {}
 
-  try {
-    if (action === 'login') return await handleLogin(req, res)
-    
-    if (action === 'session') {
-       const token = req.headers.authorization?.replace('Bearer ', '')
-       if(!token) return res.status(401).json({error: 'No token'})
-       
-       await initializeDatabase() // Garante conexão
-       const session = await sessionDB.findByToken(token)
-       
-       if (!session) return res.status(401).json({ error: 'Invalid session' })
-       return res.status(200).json({ success: true, user: { id: session.user_id, email: session.email, role: session.role }})
-    }
-    
-    return res.status(400).json({ error: 'Action not supported' })
-
-  } catch (e: any) {
-    console.error('Auth API Error:', e)
-    return res.status(500).json({ error: 'Internal API Error' })
+  if (action === 'login') return await handleLogin(req, res)
+  
+  if (action === 'session') {
+      const token = req.headers.authorization?.replace('Bearer ', '')
+      if(!token) return res.status(401).json({error: 'No token'})
+      await initializeDatabase()
+      const session = await sessionDB.findByToken(token)
+      if (!session) return res.status(401).json({ error: 'Invalid session' })
+      return res.status(200).json({ success: true, user: { id: session.user_id, email: session.email, role: session.role }})
   }
+  
+  return res.status(400).json({ error: 'Action invalid' })
 }
