@@ -1,4 +1,4 @@
-import { useState } from 'react'
+himport { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -234,7 +234,7 @@ export function LoginPage() {
 
           {/* GitHub Login Button */}
                         <div className="mt-6 pt-6 border-t border-white/10">
-                                        <p className="text-sm text-text-secondary text-center mb-4">Ou entre com</p>p>
+                                        <p className="text-sm text-text-secondary text-center mb-4">Ou entre com</p>
                                         <Button
                                                             type="button"
                                                             variant="secondary"
