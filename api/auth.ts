@@ -4,13 +4,9 @@ import crypto from 'crypto'
 import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db.js'
 
 const SESSION_DURATION_HOURS = 24
-const BCRYPT_SALT_ROUNDS = 12
 const OLD_ADMIN_EMAIL = 'kleiton@autnew.com'
 
-async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, BCRYPT_SALT_ROUNDS)
-}
-
+// Helper simples para comparar senha (único necessário para login)
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return bcrypt.compare(password, hash)
 }
@@ -28,18 +24,16 @@ function getClientInfo(req: VercelRequest) {
 
 async function ensureInitialized() {
   await initializeDatabase()
-  
-  // Limpeza de admin antigo
-  const oldAdmin = await userDB.findByEmail(OLD_ADMIN_EMAIL)
-  if (oldAdmin) {
-    await sessionDB.deleteByUserId(oldAdmin.id)
-    await userDB.delete(oldAdmin.id)
+  // Limpeza silenciosa de usuário antigo, se existir
+  const old = await userDB.findByEmail(OLD_ADMIN_EMAIL)
+  if (old) {
+    await sessionDB.deleteByUserId(old.id)
+    await userDB.delete(old.id)
   }
-  
   await userDB.ensureAdminExists()
 }
 
-// Handlers simplificados para evitar erro de complexidade/variáveis
+// Handler de Login Ultra-Simplificado e Seguro
 async function handleLogin(req: VercelRequest, res: VercelResponse) {
   const { email, senha } = req.body
   const clientInfo = getClientInfo(req)
@@ -47,8 +41,8 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
   if (!email || !senha) return res.status(400).json({ error: 'Dados incompletos' })
 
   await ensureInitialized()
+  
   const user = await userDB.findByEmail(email)
-
   if (!user || !user.ativo) {
     await auditDB.log({ action: 'login_fail', category: 'auth', details: { email }, ...clientInfo, success: false })
     return res.status(401).json({ error: 'Credenciais inválidas' })
@@ -74,7 +68,6 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
   })
 }
 
-// Handler Principal
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -87,21 +80,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (action === 'login') return await handleLogin(req, res)
     
-    // Se não for login, exige token para outras ações (simplificado para o fix)
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    if (!token && action !== 'login') return res.status(401).json({ error: 'Token necessário' })
-    
-    // Outras ações básicas
+    // Check de sessão básico
     if (action === 'session') {
-       const session = await sessionDB.findByToken(token!)
-       if (!session) return res.status(401).json({ error: 'Sessão inválida' })
+       const token = req.headers.authorization?.replace('Bearer ', '')
+       if(!token) return res.status(401).json({error: 'No token'})
+       const session = await sessionDB.findByToken(token)
+       if (!session) return res.status(401).json({ error: 'Invalid session' })
        return res.status(200).json({ success: true, user: { id: session.user_id, email: session.email, role: session.role }})
     }
     
-    return res.status(400).json({ error: 'Ação desconhecida' })
+    return res.status(400).json({ error: 'Action not supported in safe mode' })
 
   } catch (e: any) {
     console.error('Auth Error:', e)
-    return res.status(500).json({ error: 'Erro interno' })
+    return res.status(500).json({ error: 'Internal Error' })
   }
 }
