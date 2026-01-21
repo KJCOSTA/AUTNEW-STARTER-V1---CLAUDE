@@ -1,84 +1,51 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
-import type { User, LoginCredentials } from '../types'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
-/**
- * AUTH CONTEXT — STABLE DEV MODE (COMPATÍVEL)
- * - Mantém TODOS os métodos esperados pelo app
- * - Não chama backend
- * - Compila 100%
- */
-
-const BYPASS_AUTH = true
-
-const BYPASS_USER: User = {
-  id: 'admin-dev',
-  email: 'admin@autnew.com',
-  nome: 'Admin (Dev)',
-  role: 'admin',
-  ativo: true,
-  criadoEm: new Date().toISOString(),
-  primeiroAcesso: false,
-}
-
-interface AuthResult {
-  success: boolean
-  error?: string
+export interface User {
+  id: string
+  email: string
+  nome: string
+  role: 'admin' | 'user'
 }
 
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  isAdmin: boolean
-  login: (credentials: LoginCredentials) => Promise<AuthResult>
-  logout: () => Promise<void>
-  changePassword: (senhaAtual: string, novaSenha: string) => Promise<AuthResult>
-  verifyProductionPassword: (senha: string) => Promise<AuthResult>
+  login: () => Promise<void>
+  logout: () => void
+  changePassword: () => Promise<void>
+  verifyProductionPassword: () => Promise<boolean>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | null>(null)
+
+const DEV_USER: User = {
+  id: 'admin-dev',
+  email: 'admin@autnew.com',
+  nome: 'Administrador',
+  role: 'admin',
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(BYPASS_AUTH ? BYPASS_USER : null)
-  const [isLoading] = useState(false)
-
-  const isAuthenticated = !!user
-  const isAdmin = user?.role === 'admin'
-
-  const login = useCallback(async (_: LoginCredentials): Promise<AuthResult> => {
-    setUser(BYPASS_USER)
-    return { success: true }
-  }, [])
-
-  const logout = useCallback(async () => {
-    setUser(BYPASS_USER)
-  }, [])
-
-  const changePassword = useCallback(async (): Promise<AuthResult> => {
-    // Stub DEV — sempre sucesso
-    return { success: true }
-  }, [])
-
-  const verifyProductionPassword = useCallback(async (): Promise<AuthResult> => {
-    // Stub DEV — sempre sucesso
-    return { success: true }
-  }, [])
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    setUser(BYPASS_USER)
+    // LOGIN AUTOMÁTICO CANÔNICO
+    setUser(DEV_USER)
+    setIsLoading(false)
   }, [])
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated,
+        isAuthenticated: !!user,
         isLoading,
-        isAdmin,
-        login,
-        logout,
-        changePassword,
-        verifyProductionPassword,
+        login: async () => setUser(DEV_USER),
+        logout: () => setUser(null),
+        changePassword: async () => {},
+        verifyProductionPassword: async () => true,
       }}
     >
       {children}
@@ -88,15 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext)
-  if (!ctx) {
-    throw new Error('useAuth must be used within AuthProvider')
-  }
+  if (!ctx) throw new Error('AuthContext not found')
   return ctx
-}
-
-/**
- * Compatibilidade com código legado
- */
-export function useAuthToken(): string | null {
-  return 'DEV_BYPASS_TOKEN'
 }
