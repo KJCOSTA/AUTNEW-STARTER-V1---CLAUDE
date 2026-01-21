@@ -75,6 +75,13 @@ const handleAdminBypass = async () => {
 
   window.location.href = '/dashboard'
 }
+)
+  )
+
+  localStorage.setItem('autnew:token', 'DEV_BYPASS_TOKEN')
+
+  window.location.href = '/dashboard'
+}
 
 
     if (!result.success) {
