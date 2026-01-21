@@ -1,52 +1,76 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-/**
- * AUTNEW – CORE API
- * Runtime: Vercel Serverless (Node.js)
- */
+/* SMART PLAN RUNNER 
+  Prioridade das Chaves:
+  1. Chave enviada no Body (Modo Manual/Smart)
+  2. Variável de Ambiente (Modo Automático)
+*/
 
-const ENV = {
-  OPENAI_API_KEY: ['OPENAI_API_KEY'],
-  YOUTUBE_API_KEY: ['YOUTUBE_API_KEY', 'YOUTUBEDATA_API_KEY'],
-  CHANNEL_ID: ['CHANNEL_ID', 'YOUTUBE_CHANNEL_ID'],
+const ENV_MAP = {
+  openai: ['OPENAI_API_KEY'],
+  youtube: ['YOUTUBE_API_KEY', 'YOUTUBEDATA_API_KEY'],
+  channel: ['CHANNEL_ID', 'YOUTUBE_CHANNEL_ID']
 };
 
-function getEnv(name: keyof typeof ENV): string {
-  for (const key of ENV[name]) {
-    const value = process.env[key];
-    if (typeof value === 'string' && value.length > 0) {
-      return value;
-    }
+function getKey(name: keyof typeof ENV_MAP, bodyKeys?: any): string {
+  // 1. Tenta do body (Smart Mode)
+  if (bodyKeys && bodyKeys[name]) return bodyKeys[name];
+  
+  // 2. Tenta do Env
+  for (const k of ENV_MAP[name]) {
+    if (process.env[k]) return process.env[k]!;
   }
-  return ''; // Retorna vazio se não achar, para tratar depois
+  return '';
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  
+  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
   try {
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method not allowed' });
+    const { topic = 'Estratégia AUTNEW', smartKeys } = req.body;
+    
+    // Recupera chaves (Do body ou do Env)
+    const ytKey = getKey('youtube', smartKeys);
+    const channelId = getKey('channel', smartKeys);
+    const openAiKey = getKey('openai', smartKeys);
+
+    // Validação Granular (Para o front saber qual pedir)
+    const missing = [];
+    if (!ytKey) missing.push('youtube');
+    if (!channelId) missing.push('channel');
+    if (!openAiKey) missing.push('openai');
+
+    if (missing.length > 0) {
+      return res.status(400).json({ 
+        error: 'MISSING_KEYS', 
+        missing, 
+        message: 'Chaves de API necessárias não encontradas.' 
+      });
     }
 
-    const { topic = 'Plano Estratégico AUTNEW' } = req.body || {};
-    
-    // Validar chaves
-    const ytKey = getEnv('YOUTUBE_API_KEY');
-    const channelId = getEnv('CHANNEL_ID');
-    const openAiKey = getEnv('OPENAI_API_KEY');
+    // 1. YouTube Data Fetch
+    let channelData = null;
+    try {
+        const ytRes = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${channelId}&key=${ytKey}`
+        );
+        if (ytRes.ok) {
+            const data = await ytRes.json();
+            channelData = data.items?.[0] || null;
+        } else {
+            console.warn('[SMART RUN] YouTube Warning:', await ytRes.text());
+        }
+    } catch (e) {
+        console.warn('[SMART RUN] YouTube Error:', e);
+    }
 
-    if (!ytKey || !channelId) throw new Error('Configuração do YouTube ausente');
-    if (!openAiKey) throw new Error('Configuração da OpenAI ausente');
-
-    // 1. Fetch YouTube Data
-    const ytRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${channelId}&key=${ytKey}`
-    );
-    
-    if (!ytRes.ok) throw new Error(`YouTube API error: ${ytRes.status}`);
-    const ytData = await ytRes.json();
-    const channelItem = ytData.items?.[0];
-
-    // 2. Generate Plan
+    // 2. OpenAI Generation
     const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -56,28 +80,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'Você é o AUTNEW. Gere planos estratégicos reais.' },
-          { role: 'user', content: topic },
+          { role: 'system', content: 'Você é um estrategista de conteúdo expert.' },
+          { role: 'user', content: `Crie um plano de vídeo detalhado sobre: "${topic}". Inclua Título, Hook, Roteiro e CTA.` },
         ],
       }),
     });
 
-    if (!aiRes.ok) throw new Error(`OpenAI API error: ${aiRes.status}`);
+    if (!aiRes.ok) {
+        const errText = await aiRes.text();
+        return res.status(500).json({ error: 'OPENAI_ERROR', details: errText });
+    }
+
     const aiData = await aiRes.json();
-    const planText = aiData.choices?.[0]?.message?.content || '';
+    const plan = aiData.choices?.[0]?.message?.content || 'Sem conteúdo gerado.';
 
     return res.status(200).json({
       success: true,
-      source: 'REAL_APIS',
-      channel: channelItem ? {
-        title: channelItem.snippet.title,
-        statistics: channelItem.statistics,
-      } : null,
-      plan: planText,
+      mode: smartKeys ? 'SMART_MANUAL' : 'AUTOMATIC',
+      channel: channelData,
+      plan
     });
 
   } catch (err: any) {
-    console.error('[PLAN-RUN ERROR]', err);
-    return res.status(500).json({ success: false, error: err.message });
+    console.error('[SMART RUN FATAL]', err);
+    return res.status(500).json({ error: err.message });
   }
 }
