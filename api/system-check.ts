@@ -43,6 +43,7 @@ const API_URLS = {
   elevenlabs: 'https://api.elevenlabs.io/v1/user',
   anthropic: 'https://api.anthropic.com/v1/messages',
   groq: 'https://api.groq.com/openai/v1/chat/completions',
+  youtube: 'https://www.googleapis.com/youtube/v3/channels',
 }
 
 // Test real API connections
@@ -204,6 +205,32 @@ async function testGroq(apiKey: string): Promise<{ connected: boolean; responseT
   }
 }
 
+async function testYouTube(apiKey: string, channelId?: string): Promise<{ connected: boolean; responseTime: number; error?: string }> {
+  const start = Date.now()
+  try {
+    // Use channelId if provided, otherwise just test API key validity
+    const testChannelId = channelId || 'UCuAXFkgsw1L7xaCfnd5JJOw' // Random valid channel for testing
+    const url = `${API_URLS.youtube}?part=statistics,snippet&id=${testChannelId}&key=${apiKey}`
+
+    const response = await fetch(url)
+    const responseTime = Date.now() - start
+
+    if (response.ok) {
+      const data = await response.json()
+      if (data.items && data.items.length > 0) {
+        return { connected: true, responseTime }
+      }
+      // API key works but channel not found - still valid
+      return { connected: true, responseTime }
+    }
+
+    const error = await response.json().catch(() => ({}))
+    return { connected: false, responseTime, error: error.error?.message || `HTTP ${response.status}` }
+  } catch (e: any) {
+    return { connected: false, responseTime: Date.now() - start, error: e.message }
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -286,6 +313,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         GEMINI_API_KEY: { critical: true, name: 'Google Gemini' },
         // Important
         YOUTUBE_API_KEY: { critical: false, name: 'YouTube API' },
+        YOUTUBE_CHANNEL_ID: { critical: false, name: 'YouTube Channel ID' },
         ELEVENLABS_API_KEY: { critical: false, name: 'ElevenLabs TTS' },
         JSON2VIDEO_API_KEY: { critical: false, name: 'JSON2Video' },
         // Optional
@@ -445,6 +473,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           testPromises.push(
             testPixabay(process.env.PIXABAY_API_KEY).then(result => {
               apis.pixabay = { ...apis.pixabay, ...result }
+            })
+          )
+        }
+
+        // YouTube
+        if (process.env.YOUTUBE_API_KEY) {
+          testPromises.push(
+            testYouTube(process.env.YOUTUBE_API_KEY, process.env.YOUTUBE_CHANNEL_ID).then(result => {
+              apis.youtube = { ...apis.youtube, ...result }
             })
           )
         }
