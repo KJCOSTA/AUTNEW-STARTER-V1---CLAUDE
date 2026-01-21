@@ -293,7 +293,7 @@ export function Monitor() {
     }
 
     const apiSolutions = solutions[apiName] || {}
-    let message = apiSolutions[errorType] || apiSolutions['default'] || `Erro: ${details || errorType}`
+    const message = apiSolutions[errorType] || apiSolutions['default'] || `Erro: ${details || errorType}`
 
     return message
   }
