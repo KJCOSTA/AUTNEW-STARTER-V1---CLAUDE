@@ -17,16 +17,23 @@ const BYPASS_USER: User = {
   primeiroAcesso: false,
 }
 
+interface AuthResult {
+  success: boolean
+  error?: string
+  errorCode?: string
+  errorDetails?: string
+}
+
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
   isAdmin: boolean
-  login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>
+  login: (credentials: LoginCredentials) => Promise<AuthResult>
   logout: () => Promise<void>
   checkSession: () => Promise<void>
-  changePassword: (senhaAtual: string, novaSenha: string) => Promise<{ success: boolean; error?: string }>
-  verifyProductionPassword: (senha: string) => Promise<{ success: boolean; error?: string }>
+  changePassword: (senhaAtual: string, novaSenha: string) => Promise<AuthResult>
+  verifyProductionPassword: (senha: string) => Promise<AuthResult>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -107,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getToken, removeToken])
 
   // Login
-  const login = useCallback(async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
+  const login = useCallback(async (credentials: LoginCredentials): Promise<AuthResult> => {
     // Bypass: login instantâneo
     if (BYPASS_AUTH) {
       console.log('🔓 BYPASS: Login automático para', credentials.email)
@@ -130,22 +137,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user)
         return { success: true }
       } else {
-        // Handle specific error codes
+        // Handle specific error codes with more details
+        const errorCode = data.code || `HTTP_${response.status}`
+        const errorDetails = data.details || data.hint || undefined
+
         if (data.code === 'DATABASE_CONNECTION_ERROR') {
           return {
             success: false,
-            error: 'Erro de conexão com o banco de dados. Verifique a configuração do POSTGRES_URL no Vercel.'
+            error: 'Erro de conexão com o banco de dados.',
+            errorCode,
+            errorDetails: errorDetails || 'Verifique a configuração do POSTGRES_URL no Vercel.'
           }
         }
-        return { success: false, error: data.error || 'Erro ao fazer login' }
+        return {
+          success: false,
+          error: data.error || 'Erro ao fazer login',
+          errorCode,
+          errorDetails
+        }
       }
     } catch (error) {
       console.error('Login failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+
       // Check if it's a network error
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        return { success: false, error: 'Erro de rede. Verifique sua conexão.' }
+        return {
+          success: false,
+          error: 'Erro de rede. Verifique sua conexão.',
+          errorCode: 'NETWORK_ERROR',
+          errorDetails: errorMessage
+        }
       }
-      return { success: false, error: 'Erro de conexão. Tente novamente.' }
+      return {
+        success: false,
+        error: 'Erro de conexão. Tente novamente.',
+        errorCode: 'CONNECTION_ERROR',
+        errorDetails: errorMessage
+      }
     }
   }, [saveToken])
 
@@ -179,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getToken, removeToken])
 
   // Change password
-  const changePassword = useCallback(async (senhaAtual: string, novaSenha: string): Promise<{ success: boolean; error?: string }> => {
+  const changePassword = useCallback(async (senhaAtual: string, novaSenha: string): Promise<AuthResult> => {
     // Bypass: aceita qualquer troca de senha
     if (BYPASS_AUTH) {
       console.log('🔓 BYPASS: Troca de senha aprovada automaticamente')
@@ -207,16 +236,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return { success: true }
       } else {
-        return { success: false, error: data.error || 'Erro ao trocar senha' }
+        return {
+          success: false,
+          error: data.error || 'Erro ao trocar senha',
+          errorCode: data.code || `HTTP_${response.status}`,
+          errorDetails: data.details
+        }
       }
     } catch (error) {
       console.error('Change password failed:', error)
-      return { success: false, error: 'Erro de conexão. Tente novamente.' }
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      return {
+        success: false,
+        error: 'Erro de conexão. Tente novamente.',
+        errorCode: 'CONNECTION_ERROR',
+        errorDetails: errorMessage
+      }
     }
   }, [getToken, user])
 
   // Verify password for production mode
-  const verifyProductionPassword = useCallback(async (senha: string): Promise<{ success: boolean; error?: string }> => {
+  const verifyProductionPassword = useCallback(async (senha: string): Promise<AuthResult> => {
     // Bypass: aceita qualquer senha
     if (BYPASS_AUTH) {
       console.log('🔓 BYPASS: Verificação de senha do modo produção aprovada automaticamente')
@@ -240,11 +280,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok && data.success) {
         return { success: true }
       } else {
-        return { success: false, error: data.error || 'Senha incorreta' }
+        return {
+          success: false,
+          error: data.error || 'Senha incorreta',
+          errorCode: data.code || `HTTP_${response.status}`,
+          errorDetails: data.details
+        }
       }
     } catch (error) {
       console.error('Verify production password failed:', error)
-      return { success: false, error: 'Erro de conexão. Tente novamente.' }
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      return {
+        success: false,
+        error: 'Erro de conexão. Tente novamente.',
+        errorCode: 'CONNECTION_ERROR',
+        errorDetails: errorMessage
+      }
     }
   }, [getToken])
 
