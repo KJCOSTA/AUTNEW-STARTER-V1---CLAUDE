@@ -57,15 +57,25 @@ export function LoginPage() {
     setIsLoading(false)
   }
 
-  const handleAdminBypass = async () => {
-    setErrorInfo(null)
-    setShowErrorDetails(false)
-    setIsLoading(true)
+const handleAdminBypass = async () => {
+  setIsLoading(true)
 
-    const result = await login({
+  // Simula login bem-sucedido no frontend
+  localStorage.setItem(
+    'autnew:user',
+    JSON.stringify({
+      id: 'admin',
       email: 'admin@autnew.com',
-      senha: 'Admin123!'
+      role: 'admin',
+      name: 'Administrador'
     })
+  )
+
+  localStorage.setItem('autnew:token', 'DEV_BYPASS_TOKEN')
+
+  window.location.href = '/dashboard'
+}
+
 
     if (!result.success) {
       setErrorInfo({
