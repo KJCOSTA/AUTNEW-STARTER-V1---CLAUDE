@@ -649,22 +649,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Ação inválida' })
     }
   } catch (error) {
-    console.error('Auth API error:', error)
+    // Log detalhado para Vercel
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+    const errorStack = error instanceof Error ? error.stack : undefined
+
+    console.error('[AUTH API ERROR]', {
+      action,
+      error: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString()
+    })
 
     // Identify database connection errors
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
     const isDbError = errorMessage.includes('POSTGRES') ||
                       errorMessage.includes('connection') ||
                       errorMessage.includes('ECONNREFUSED') ||
                       errorMessage.includes('timeout') ||
                       errorMessage.includes('ssl') ||
-                      errorMessage.includes('database')
+                      errorMessage.includes('database') ||
+                      errorMessage.includes('SASL') ||
+                      errorMessage.includes('password')
 
     if (isDbError) {
+      console.error('[AUTH API] Erro de banco de dados detectado:', errorMessage)
       return res.status(503).json({
         error: 'Erro de conexão com o banco de dados',
         code: 'DATABASE_CONNECTION_ERROR',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        details: errorMessage,
         hint: 'Verifique se POSTGRES_URL está configurado corretamente no Vercel'
       })
     }
@@ -672,7 +683,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({
       error: 'Erro interno do servidor',
       code: 'INTERNAL_ERROR',
-      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      details: errorMessage
     })
   }
 }

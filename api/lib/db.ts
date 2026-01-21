@@ -1,8 +1,18 @@
 import { sql } from '@vercel/postgres'
 
+// Verificar se POSTGRES_URL está configurado
+function checkDatabaseConfig() {
+  if (!process.env.POSTGRES_URL) {
+    console.error('[DB] POSTGRES_URL não está definido!')
+    throw new Error('POSTGRES_URL environment variable is not set')
+  }
+  console.log('[DB] POSTGRES_URL configurado')
+}
+
 // Database schema initialization
 export async function initializeDatabase() {
   try {
+    checkDatabaseConfig()
     // Create users table
     await sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -69,11 +79,13 @@ export async function initializeDatabase() {
     await sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_criado_em ON audit_logs(criado_em)`
     await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`
 
-    console.log('Database initialized successfully')
+    console.log('[DB] Database initialized successfully')
     return { success: true }
   } catch (error) {
-    console.error('Error initializing database:', error)
-    return { success: false, error }
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('[DB] Error initializing database:', errorMessage)
+    console.error('[DB] Full error:', error)
+    throw error // Re-throw to propagate to caller
   }
 }
 
