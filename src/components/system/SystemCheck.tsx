@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   ShieldCheck, RefreshCw, CheckCircle2, XCircle, ArrowRight, 
-  Database, Wifi, Activity, Zap, Video, Image, Server, Terminal
+  Database, Wifi, Activity, Zap, Video, Image, Terminal
 } from 'lucide-react'
 
-// Definição Visual dos Serviços
 const GROUPS = [
   {
     name: "Infraestrutura Core",
@@ -53,7 +52,7 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
       setSystemInfo({ region: data.region, env: data.environment })
       setResults(data.results || {})
       
-      addLog(\`Diagnóstico concluído em \${Date.now() - start}ms\`)
+      addLog(`Diagnóstico concluído em ${Date.now() - start}ms`)
     } catch(e: any) { 
       console.error(e)
       addLog('ERRO FATAL NA COMUNICAÇÃO COM O SERVIDOR')
@@ -64,11 +63,9 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
 
   useEffect(() => { runCheck() }, [])
 
-  // Flatten services para verificação rápida
   const allServices = GROUPS.flatMap(g => g.items)
   const requiredServices = allServices.filter(s => s.required)
   
-  // Cálculo de Saúde do Sistema
   const successCount = Object.values(results).filter((r: any) => r.success).length
   const totalChecked = Object.keys(results).length || 1
   const healthPercent = Math.round((successCount / totalChecked) * 100)
@@ -79,7 +76,6 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
     <div className="min-h-screen bg-[#09090b] text-white flex items-center justify-center p-4 font-mono">
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* COLUNA 1: Status Geral & Ações */}
         <div className="lg:col-span-1 space-y-6">
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -103,8 +99,8 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
               <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: \`\${healthPercent}%\` }}
-                  className={\`h-full \${healthPercent > 80 ? 'bg-green-500' : healthPercent > 50 ? 'bg-yellow-500' : 'bg-red-500'}\`}
+                  animate={{ width: `${healthPercent}%` }}
+                  className={`h-full ${healthPercent > 80 ? 'bg-green-500' : healthPercent > 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
                 />
               </div>
             </div>
@@ -122,17 +118,16 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
 
             <button 
               onClick={onComplete}
-              className={\`w-full py-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg \${
+              className={`w-full py-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg ${
                 criticalFailure 
                   ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' 
                   : 'bg-white text-black hover:bg-zinc-200 shadow-white/10'
-              }\`}
+              }`}
             >
               ACESSAR PAINEL <ArrowRight className="w-4 h-4" />
             </button>
           </motion.div>
 
-          {/* Console Log Visual */}
           <div className="bg-black border border-zinc-800 rounded-xl p-4 h-48 overflow-hidden font-mono text-[10px] text-green-500/80 shadow-inner">
             <div className="flex items-center gap-2 mb-2 text-zinc-600 border-b border-zinc-900 pb-2">
               <Terminal className="w-3 h-3" /> SYSTEM_LOGS
@@ -155,7 +150,6 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
           </div>
         </div>
 
-        {/* COLUNA 2 & 3: Grid de Serviços */}
         <div className="lg:col-span-2 space-y-6">
           {GROUPS.map((group, idx) => (
             <motion.div 
@@ -173,24 +167,24 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
                   return (
                     <div 
                       key={s.id} 
-                      className={\`
+                      className={`
                         relative p-4 rounded-xl border flex items-center justify-between transition-all duration-300
-                        \${status === 'success' ? 'bg-green-500/5 border-green-500/20' : ''}
-                        \${status === 'error' ? 'bg-red-500/5 border-red-500/20' : ''}
-                        \${status === 'warning' ? 'bg-zinc-900 border-zinc-800 opacity-60' : ''}
-                        \${status === 'loading' ? 'bg-zinc-900 border-zinc-800' : ''}
-                      \`}
+                        ${status === 'success' ? 'bg-green-500/5 border-green-500/20' : ''}
+                        ${status === 'error' ? 'bg-red-500/5 border-red-500/20' : ''}
+                        ${status === 'warning' ? 'bg-zinc-900 border-zinc-800 opacity-60' : ''}
+                        ${status === 'loading' ? 'bg-zinc-900 border-zinc-800' : ''}
+                      `}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={\`p-2 rounded-lg \${status === 'success' ? 'bg-green-500/10 text-green-400' : status === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-800 text-zinc-500'}\`}>
+                        <div className={`p-2 rounded-lg ${status === 'success' ? 'bg-green-500/10 text-green-400' : status === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-800 text-zinc-500'}`}>
                           <s.icon className="w-5 h-5" />
                         </div>
                         <div>
                           <div className="font-bold text-sm text-zinc-200">{s.name}</div>
                           <div className="text-[10px] text-zinc-500 uppercase">
                             {status === 'loading' && 'Verificando...'}
-                            {status === 'success' && \`ONLINE • \${res.latency}ms\`}
-                            {status === 'error' && \`FALHA: \${res.message}\`}
+                            {status === 'success' && `ONLINE • ${res.latency}ms`}
+                            {status === 'error' && `FALHA: ${res.message}`}
                             {status === 'warning' && 'NÃO CONFIGURADO'}
                           </div>
                         </div>
@@ -208,7 +202,7 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
           
           <div className="flex justify-end">
              <button onClick={runCheck} disabled={loading} className="text-xs text-zinc-500 hover:text-white flex items-center gap-2 transition">
-               <RefreshCw className={\`w-3 h-3 \${loading ? 'animate-spin' : ''}\`} /> Atualizar Diagnóstico
+               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Atualizar Diagnóstico
              </button>
           </div>
         </div>
