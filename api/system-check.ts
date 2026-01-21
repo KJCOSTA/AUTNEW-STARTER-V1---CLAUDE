@@ -1,186 +1,157 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { sql } from '@vercel/postgres'
 
-interface ApiTestResult {
-  configured: boolean
-  name: string
-  connected?: boolean
-  responseTime?: number
-  error?: string
-  details?: string
-}
-
-interface SystemCheckResponse {
-  timestamp: string
-  status: 'healthy' | 'degraded' | 'error'
-  server?: {
-    online: boolean
-    environment: string
-    version: string
-  }
-  database?: {
-    configured: boolean
-    connected: boolean
-    tables: string[]
-    error?: string
-    details?: string
-    responseTime?: number
-  }
-  env?: {
-    configured: string[]
-    missing: string[]
-    criticalMissing: string[]
-  }
-  apis?: Record<string, ApiTestResult>
-}
-
-const API_URLS = {
+// Mapeamento de endpoints para teste real
+const ENDPOINTS = {
   gemini: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
   openai: 'https://api.openai.com/v1/models',
+  elevenlabs: 'https://api.elevenlabs.io/v1/user',
   pexels: 'https://api.pexels.com/v1/search?query=test&per_page=1',
   pixabay: 'https://pixabay.com/api/?q=test&per_page=3',
-  json2video: 'https://api.json2video.com/v2/account',
-  elevenlabs: 'https://api.elevenlabs.io/v1/user',
-  anthropic: 'https://api.anthropic.com/v1/messages',
-  groq: 'https://api.groq.com/openai/v1/chat/completions',
+  stability: 'https://api.stability.ai/v1/user/account',
+  telegram: 'https://api.telegram.org', // Será montado dinamicamente
   youtube: 'https://www.googleapis.com/youtube/v3/channels',
+  json2video: 'https://api.json2video.com/v2/account'
 }
 
-async function testYouTube(apiKey: string, channelId?: string): Promise<{ connected: boolean; responseTime: number; error?: string; details?: string }> {
-  const start = Date.now()
+// Função auxiliar para testar uma API específica
+async function checkService(service: string, key: string, extra?: any) {
+  const start = Date.now();
+  let response;
+  let data;
+  
   try {
-    // Tenta pegar o ID do canal de várias variáveis possíveis
-    const targetChannelId = channelId || process.env.CHANNEL_ID || process.env.YOUTUBE_CHANNEL_ID;
-    
-    // Se não tiver canal, testa apenas a chave com uma busca genérica
-    const url = targetChannelId 
-      ? `${API_URLS.youtube}?part=snippet,statistics&id=${targetChannelId}&key=${apiKey}`
-      : `${API_URLS.youtube}?part=id&id=UCuAXFkgsw1L7xaCfnd5JJOw&key=${apiKey}`; // Canal teste do Google
+    switch (service) {
+      case 'gemini':
+        response = await fetch(`${ENDPOINTS.gemini}?key=${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'Ping' }] }] })
+        });
+        break;
 
-    console.log('[YOUTUBE TEST] Testing URL:', url.replace(apiKey, 'HIDDEN'));
+      case 'openai':
+        response = await fetch(ENDPOINTS.openai, {
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        break;
 
-    const response = await fetch(url)
-    const responseTime = Date.now() - start
-    const data = await response.json()
+      case 'elevenlabs':
+        response = await fetch(ENDPOINTS.elevenlabs, {
+          headers: { 'xi-api-key': key }
+        });
+        break;
+
+      case 'pexels':
+        response = await fetch(ENDPOINTS.pexels, {
+          headers: { 'Authorization': key }
+        });
+        break;
+
+      case 'stability':
+        response = await fetch(ENDPOINTS.stability, {
+          headers: { 'Authorization': `Bearer ${key}` }
+        });
+        break;
+      
+      case 'json2video':
+         response = await fetch(ENDPOINTS.json2video, {
+          headers: { 'x-api-key': key }
+        });
+        break;
+
+      case 'pixabay':
+        response = await fetch(`${ENDPOINTS.pixabay}&key=${key}`);
+        break;
+
+      case 'telegram':
+        // Telegram precisa do token na URL: api.telegram.org/bot<TOKEN>/getMe
+        response = await fetch(`${ENDPOINTS.telegram}/bot${key}/getMe`);
+        break;
+
+      case 'youtube':
+        const channelPart = extra?.channelId ? `&id=${extra.channelId}` : '&id=UCuAXFkgsw1L7xaCfnd5JJOw'; // ID de teste
+        response = await fetch(`${ENDPOINTS.youtube}?part=snippet${channelPart}&key=${key}`);
+        break;
+
+      default:
+        throw new Error(`Serviço desconhecido: ${service}`);
+    }
+
+    const duration = Date.now() - start;
+    data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const errorMsg = data.error?.message || `HTTP ${response.status}`;
-      const errorReason = data.error?.errors?.[0]?.reason || 'unknown';
+      const errorMsg = data.error?.message || data.description || data.detail || `HTTP ${response.status}`;
       return { 
-        connected: false, 
-        responseTime, 
-        error: `Erro API: ${errorMsg}`,
-        details: `Motivo: ${errorReason} | ChannelID usado: ${targetChannelId || 'Nenhum'}`
-      }
+        success: false, 
+        duration, 
+        message: `Erro: ${errorMsg}`, 
+        code: response.status 
+      };
     }
 
-    if (data.items && data.items.length > 0) {
-      return { connected: true, responseTime, details: `Canal encontrado: ${data.items[0].snippet.title}` }
-    }
-    
-    // Se a chave funciona mas o canal não foi achado (retornou items: [])
-    if (targetChannelId) {
-       return { 
-         connected: false, 
-         responseTime, 
-         error: 'Canal não encontrado',
-         details: `A API respondeu, mas o ID ${targetChannelId} não retornou dados.`
-       }
+    // Validações extras de conteúdo
+    if (service === 'youtube' && extra?.channelId && data.items?.length === 0) {
+      return { success: false, duration, message: 'Chave válida, mas Canal não encontrado (Verifique o ID)', code: 404 };
     }
 
-    return { connected: true, responseTime, details: 'Chave válida (sem canal específico)' }
+    return { success: true, duration, message: 'Conexão estavel', code: 200 };
 
-  } catch (e: any) {
-    return { connected: false, responseTime: Date.now() - start, error: e.message }
-  }
-}
-
-// Funções de teste genéricas para outras APIs
-async function simpleGet(url: string, headers: any = {}): Promise<{ connected: boolean; responseTime: number; error?: string }> {
-  const start = Date.now();
-  try {
-    const res = await fetch(url, { headers });
-    if (res.ok) return { connected: true, responseTime: Date.now() - start };
-    const err = await res.json().catch(() => ({}));
-    return { connected: false, responseTime: Date.now() - start, error: err.error?.message || err.message || `Status ${res.status}` };
-  } catch (e: any) {
-    return { connected: false, responseTime: Date.now() - start, error: e.message };
+  } catch (error: any) {
+    return { success: false, duration: Date.now() - start, message: error.message, code: 0 };
   }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // MODO 1: Testar uma chave específica enviada pelo Frontend (Correção Manual)
+  if (req.method === 'POST') {
+    const { service, key, extra } = req.body;
+    if (!service || !key) return res.status(400).json({ error: 'Service e Key são obrigatórios' });
+    
+    const result = await checkService(service, key, extra);
+    return res.json(result);
+  }
+
+  // MODO 2: Testar tudo que está no ENV (Diagnóstico Inicial)
+  const results: any = {};
   
-  if (req.method === 'OPTIONS') return res.status(200).end()
-
-  const checkType = req.query.check as string || 'all'
-  const response: SystemCheckResponse = {
-    timestamp: new Date().toISOString(),
-    status: 'healthy'
-  }
-
+  // 1. Banco de Dados
   try {
-    // 1. SERVER
-    if (checkType === 'server' || checkType === 'all') {
-      response.server = {
-        online: true,
-        environment: process.env.NODE_ENV || 'dev',
-        version: '1.2.0 (Fix)'
-      }
-    }
-
-    // 2. DATABASE
-    if (checkType === 'database' || checkType === 'all') {
-      if (!process.env.POSTGRES_URL) {
-        response.database = { configured: false, connected: false, tables: [], error: 'POSTGRES_URL missing' }
-      } else {
-        try {
-          const start = Date.now()
-          await sql`SELECT 1`
-          const tables = await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`
-          response.database = {
-            configured: true,
-            connected: true,
-            tables: tables.rows.map(r => r.table_name),
-            responseTime: Date.now() - start
-          }
-        } catch (e: any) {
-          response.database = { configured: true, connected: false, tables: [], error: e.message }
-          response.status = 'error'
-        }
-      }
-    }
-
-    // 3. APIS (Deep Test)
-    if (checkType === 'apis' || checkType === 'all') {
-      const deep = req.query.deep === 'true'
-      const apis: Record<string, ApiTestResult> = {}
-
-      // Config Checks
-      apis.youtube = { configured: !!process.env.YOUTUBE_API_KEY, name: 'YouTube' }
-      apis.openai = { configured: !!process.env.OPENAI_API_KEY, name: 'OpenAI' }
-      apis.gemini = { configured: !!process.env.GEMINI_API_KEY, name: 'Gemini' }
-      
-      if (deep) {
-        // YouTube Test
-        if (apis.youtube.configured) {
-          const ytRes = await testYouTube(process.env.YOUTUBE_API_KEY!, process.env.CHANNEL_ID);
-          apis.youtube = { ...apis.youtube, ...ytRes };
-        }
-        
-        // OpenAI Test
-        if (apis.openai.configured) {
-           const res = await simpleGet(API_URLS.openai, { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` });
-           apis.openai = { ...apis.openai, ...res };
-        }
-      }
-      
-      response.apis = apis;
-    }
-
-    return res.status(200).json(response)
+    const dbStart = Date.now();
+    await sql`SELECT 1`;
+    results.database = { success: true, duration: Date.now() - dbStart, message: 'Conectado ao NeonDB' };
   } catch (e: any) {
-    return res.status(500).json({ status: 'error', error: e.message })
+    results.database = { success: false, message: e.message };
   }
+
+  // 2. APIs Externas
+  const apisToCheck = [
+    { id: 'gemini', env: 'GEMINI_API_KEY' },
+    { id: 'openai', env: 'OPENAI_API_KEY' },
+    { id: 'youtube', env: 'YOUTUBE_API_KEY', extra: { channelId: process.env.CHANNEL_ID || process.env.YOUTUBE_CHANNEL_ID } },
+    { id: 'elevenlabs', env: 'ELEVENLABS_API_KEY' },
+    { id: 'pexels', env: 'PEXELS_API_KEY' },
+    { id: 'pixabay', env: 'PIXABAY_API_KEY' },
+    { id: 'stability', env: 'STABILITY_API_KEY' },
+    { id: 'telegram', env: 'TELEGRAM_BOT_TOKEN' },
+    { id: 'json2video', env: 'JSON2VIDEO_API_KEY' }
+  ];
+
+  for (const api of apisToCheck) {
+    const key = process.env[api.env];
+    if (!key) {
+      results[api.id] = { success: false, message: 'Variável de ambiente não configurada', missingEnv: true };
+    } else {
+      results[api.id] = await checkService(api.id, key, api.extra);
+    }
+  }
+
+  return res.json({ timestamp: new Date().toISOString(), results });
 }
