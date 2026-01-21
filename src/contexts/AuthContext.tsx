@@ -4,57 +4,56 @@ export interface User {
   id: string
   email: string
   nome: string
-  role: 'admin' | 'user'
+  role: 'admin' | 'editor' | 'viewer'
 }
 
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: () => Promise<void>
+  login: (creds: any) => Promise<boolean>
   logout: () => void
-  changePassword: () => Promise<void>
-  verifyProductionPassword: () => Promise<boolean>
+  verifyProductionPassword: () => Promise<any>
+  isAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-const DEV_USER: User = {
+const ADMIN_USER: User = {
   id: 'admin-dev',
   email: 'admin@autnew.com',
   nome: 'Administrador',
-  role: 'admin',
+  role: 'admin'
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
+  
   useEffect(() => {
-    // LOGIN AUTOMÁTICO CANÔNICO
-    setUser(DEV_USER)
-    setIsLoading(false)
+    // Forçar login imediato no carregamento
+    localStorage.setItem('autnew:token', 'DEV_BYPASS_TOKEN')
+    setUser(ADMIN_USER)
   }, [])
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login: async () => setUser(DEV_USER),
-        logout: () => setUser(null),
-        changePassword: async () => {},
-        verifyProductionPassword: async () => true,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      isAdmin: true,
+      login: async () => true,
+      logout: () => {},
+      verifyProductionPassword: async () => ({ success: true }),
+    }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('AuthContext not found')
-  return ctx
+  return useContext(AuthContext)!
+}
+
+export function useAuthToken() {
+  return 'DEV_BYPASS_TOKEN';
 }
