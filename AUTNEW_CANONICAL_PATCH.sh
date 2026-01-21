@@ -71,4 +71,4 @@ echo "==============================================="
 echo "✅ PATCH CANÔNICO APLICADO COM SUCESSO"
 echo "👉 Próximo passo: git commit + git push"
 echo "==============================================="
-chmod +x AUTNEW_CANONICAL_PATCH.sh
+
