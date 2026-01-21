@@ -1,4 +1,4 @@
-import { useState, Component, ErrorInfo, ReactNode, useEffect } from 'react'
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Layout } from './components/layout/Layout'
@@ -10,53 +10,38 @@ import { LoginPage } from './components/auth/LoginPage'
 import { ChangePasswordPage } from './components/auth/ChangePasswordPage'
 import { SystemCheck } from './components/system/SystemCheck'
 import { useStore } from './store/useStore'
-import { Loader2, AlertTriangle } from 'lucide-react'
-
-// Error Boundary para evitar tela branca da morte
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: string }> {
-  constructor(props: any) { super(props); this.state = { hasError: false, error: '' } }
-  static getDerivedStateFromError(error: any) { return { hasError: true, error: error.toString() } }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-black text-red-500 flex flex-col items-center justify-center p-8 text-center">
-          <AlertTriangle className="w-16 h-16 mb-4 mx-auto" />
-          <h1 className="text-2xl font-bold mb-2">Erro Crítico de Renderização</h1>
-          <p className="text-zinc-400 mb-4">O sistema encontrou um erro inesperado.</p>
-          <button onClick={() => { sessionStorage.clear(); window.location.reload() }} className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-zinc-200">
-            Limpar Cache e Recarregar
-          </button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
+import { Loader2 } from 'lucide-react'
 
 function AppContent() {
   const [activeModule, setActiveModule] = useState('plan-run')
-  // FIX: Lê do sessionStorage se já passou pelo check para não travar no reload
+  
+  // Lógica de Memória: Lê se o check já foi feito na sessão
   const [systemCheckPassed, setSystemCheckPassed] = useState(() => {
-    return sessionStorage.getItem('autnew_sys_check') === 'true'
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('autnew_check_ok') === 'true'
+    }
+    return false
   })
   
   const { loading, loadingMessage } = useStore()
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth()
 
-  // Salva estado quando passa
   const handleCheckComplete = () => {
-    sessionStorage.setItem('autnew_sys_check', 'true')
+    sessionStorage.setItem('autnew_check_ok', 'true')
     setSystemCheckPassed(true)
   }
 
-  // 1. Loading Inicial da Auth
+  // 1. Carregando Login...
   if (isLoading) {
-    return <div className="min-h-screen bg-[#030712] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-purple-600"/></div>
+    return (
+      <div className="min-h-screen bg-[#030712] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-600"/>
+      </div>
+    )
   }
 
-  // 2. Se já estiver logado, PULA o System Check (Prioridade Máxima)
+  // 2. LOGADO? Entra direto (Fura o bloqueio do Check)
   if (isAuthenticated) {
-    // Renderiza o Sistema Principal
     if (user?.primeiroAcesso) return <ChangePasswordPage />
     
     return (
@@ -86,22 +71,20 @@ function AppContent() {
     )
   }
 
-  // 3. Se não está logado E não passou no check, mostra check
+  // 3. NÃO LOGADO? Precisa passar pelo Check primeiro
   if (!systemCheckPassed) {
     return <SystemCheck onComplete={handleCheckComplete} />
   }
 
-  // 4. Se passou no check mas não tá logado, mostra Login
+  // 4. CHECK OK, MAS NÃO LOGADO? Tela de Login
   return <LoginPage />
 }
 
 function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ErrorBoundary>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }
 
