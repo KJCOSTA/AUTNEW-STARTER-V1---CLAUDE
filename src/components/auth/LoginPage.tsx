@@ -1,6 +1,19 @@
 import { useState } from 'react'
+const ENABLE_ADMIN_BYPASS = true
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import {
+  Sparkles,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader2,
+  Zap,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react'
+
 import { useAuth } from '../../contexts/AuthContext'
 import { Button, Input } from '../ui'
 
@@ -55,7 +68,7 @@ export function LoginPage() {
   }
 
   // Verificar se estamos em modo de desenvolvimento
-  const isDevelopment = import.meta.env.DEV
+
 
   const openDiagnostics = () => {
     window.open('/api/db-health', '_blank')
@@ -232,60 +245,26 @@ export function LoginPage() {
             </Button>
           </form>
 
-                   {/* GitHub Login Button */}
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-sm text-text-secondary text-center mb-4">
-              Ou entre com
-            </p>
+  
+         {ENABLE_ADMIN_BYPASS && (
+  <div className="mt-6 pt-6 border-t border-white/10">
+    <Button
+      type="button"
+      variant="secondary"
+      className="w-full"
+      size="lg"
+      onClick={handleDevLogin}
+      disabled={isLoading}
+    >
+      <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+      Entrar direto como Admin
+    </Button>
 
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full"
-              size="lg"
-              onClick={() => {
-                window.location.href =
-                  'https://ep-curly-credit-acugheqo.neonauth.sa-east-1.aws.neon.tech/neondb/auth/signin/github?callbackUrl=' +
-                  encodeURIComponent(window.location.origin + '/dashboard')
-              }}
-            >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  fillRule="evenodd"
-                  clipRule="evenodd"
-                  d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504..."
-                />
-              </svg>
-              Entrar com GitHub
-            </Button>
-          </div>
-
-
-
-          {/* Dev Login Button - Apenas em desenvolvimento */}
-          {isDevelopment && (
-            <div className="mt-6 pt-6 border-t border-white/10">
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                size="lg"
-                onClick={handleDevLogin}
-                disabled={isLoading}
-              >
-                <Zap className="w-5 h-5 mr-2 text-yellow-400" />
-                Entrar como Admin (Dev)
-              </Button>
-              <p className="text-xs text-text-secondary text-center mt-3">
-                Modo desenvolvimento - acesso direto sem credenciais
-              </p>
-            </div>
-          )}
-        </motion.div>
+    <p className="text-xs text-text-secondary text-center mt-3">
+      Acesso administrativo temporário (bypass)
+    </p>
+  </div>
+)}
 
         {/* Footer */}
         <p className="text-center text-xs text-text-secondary mt-6">
