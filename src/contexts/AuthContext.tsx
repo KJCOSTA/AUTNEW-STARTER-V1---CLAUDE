@@ -34,12 +34,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem(TOKEN_KEY)
       const storedUser = localStorage.getItem(USER_KEY)
 
+      console.log('[AUTH] Verifying token on mount...', { hasToken: !!token, hasUser: !!storedUser })
+
       if (!token || !storedUser) {
+        console.log('[AUTH] No token or user found, skipping verification')
         setIsLoading(false)
         return
       }
 
       try {
+        console.log('[AUTH] Sending token verification request...')
         // Verify token with backend
         const response = await fetch('/api/auth', {
           method: 'POST',
@@ -50,25 +54,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ action: 'session' })
         })
 
+        console.log('[AUTH] Token verification response:', response.status)
+
         if (response.ok) {
           const data = await response.json()
+          console.log('[AUTH] Token verification result:', { success: data.success, hasUser: !!data.user })
+
           if (data.success && data.user) {
+            console.log('[AUTH] Token valid, setting user:', data.user.email)
             setUser(data.user)
           } else {
             // Token invalid, clear storage
+            console.log('[AUTH] Token invalid (no user in response), clearing storage')
             localStorage.removeItem(TOKEN_KEY)
             localStorage.removeItem(USER_KEY)
           }
         } else {
           // Token invalid, clear storage
+          console.log('[AUTH] Token invalid (non-OK response), clearing storage')
           localStorage.removeItem(TOKEN_KEY)
           localStorage.removeItem(USER_KEY)
         }
       } catch (error) {
-        console.error('[AUTH] Token verification failed:', error)
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
+        console.error('[AUTH] Token verification failed with error:', error)
+        // On network error, don't clear token - just try to use cached user
+        try {
+          const cachedUser = JSON.parse(storedUser)
+          console.log('[AUTH] Using cached user due to network error:', cachedUser.email)
+          setUser(cachedUser)
+        } catch (parseError) {
+          console.error('[AUTH] Failed to parse cached user, clearing storage')
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(USER_KEY)
+        }
       } finally {
+        console.log('[AUTH] Token verification complete, setting isLoading to false')
         setIsLoading(false)
       }
     }
