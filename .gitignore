@@ -49,5 +49,3 @@ coverage
 # Misc
 *.pem
 .env*.local
-tsconfig*.tsbuildinfo
-repomix-output.*
