@@ -5,7 +5,7 @@ import type { User, LoginCredentials } from '../types'
 // AUTENTICAÇÃO COM POSTGRESQL
 // Banco de dados real está funcionando
 // ============================================
-const BYPASS_AUTH = false
+const BYPASS_AUTH = true
 
 const BYPASS_USER: User = {
   id: 'bypass-admin-001',
