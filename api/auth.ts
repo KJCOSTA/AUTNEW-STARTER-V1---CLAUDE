@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
-import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db.js'
+import { initializeDatabase, userDB, sessionDB } from './lib/db.js'
 
-const SESSION_DURATION_HOURS = 720
+const SESSION_DURATION_HOURS = 720 // 30 dias
 const ADMIN_EMAIL = 'admin@autnew.com'
 
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
@@ -32,13 +32,11 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
 
   await ensureInitialized()
   
-  // BYPASS: Se vier login social (Google/Github) simulado pelo frontend, loga o admin direto
+  // 🚀 BYPASS: Login Rápido (Google/GitHub) -> Loga Admin Direto
   if (provider === 'google' || provider === 'github') {
-     console.log('[AUTH] Fast Login bypass triggered for:', provider)
-     // Pega o usuário admin
      let user = await userDB.findByEmail(ADMIN_EMAIL)
      
-     // Se por milagre o admin não existir, cria um na hora
+     // Se admin não existir, cria agora
      if (!user) {
         await userDB.ensureAdminExists()
         user = await userDB.findByEmail(ADMIN_EMAIL)
@@ -59,8 +57,9 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
      })
   }
 
-  // LOGIN NORMAL (Senha)
+  // 🔒 LOGIN NORMAL (Senha)
   if (!email || !senha) return res.status(400).json({ error: 'Dados incompletos' })
+  
   const user = await userDB.findByEmail(email)
   
   if (!user || !user.ativo) return res.status(401).json({ error: 'Credenciais inválidas' })
@@ -83,6 +82,7 @@ async function handleLogin(req: VercelRequest, res: VercelResponse) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS & Headers
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -97,15 +97,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (action === 'session') {
        const token = req.headers.authorization?.replace('Bearer ', '')
        if(!token) return res.status(401).json({error: 'No token'})
+       
        await initializeDatabase()
        const session = await sessionDB.findByToken(token)
+       
        if (!session) return res.status(401).json({ error: 'Invalid session' })
        return res.status(200).json({ success: true, user: { id: session.user_id, email: session.email, role: session.role }})
     }
     
     return res.status(400).json({ error: 'Action invalid' })
   } catch (e: any) {
-    console.error('API Error:', e)
-    return res.status(500).json({ error: 'Internal Error' })
+    console.error('Auth Error:', e)
+    return res.status(500).json({ error: 'Internal Server Error' })
   }
 }
