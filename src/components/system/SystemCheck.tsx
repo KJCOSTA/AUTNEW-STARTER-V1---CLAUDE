@@ -7,12 +7,12 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
   const [status, setStatus] = useState<'running' | 'success' | 'error'>('running')
   const [results, setResults] = useState<any[]>([])
 
-  const addLog = (msg: string) => setLogs(prev => [...prev, \`[\${new Date().toLocaleTimeString()}] \${msg}\`])
+  const addLog = (msg: string) => setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`])
 
   const runDiagnostics = async () => {
     setStatus('running')
     setResults([])
-    setLogs([]) // Limpar logs anteriores
+    setLogs([])
     addLog('Iniciando diagnóstico completo...')
 
     try {
@@ -25,7 +25,7 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
       addLog('Verificando Banco de Dados...')
       const db = await fetch('/api/system-check?check=database').then(r => r.json())
       const dbStatus = db.database?.connected ? 'success' : 'error'
-      const dbMsg = db.database?.error ? \`Erro: \${db.database.error}\` : \`Tabelas: \${db.database?.tables?.length || 0}\`
+      const dbMsg = db.database?.error ? `Erro: ${db.database.error}` : `Tabelas: ${db.database?.tables?.length || 0}`
       setResults(prev => [...prev, { name: 'Banco de Dados', status: dbStatus, details: dbMsg }])
 
       // 3. APIs Deep Check
@@ -42,15 +42,15 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
         setResults(prev => [...prev, { 
           name: val.name || key.toUpperCase(), 
           status: st, 
-          details: val.error ? \`ERRO: \${val.error} \${val.details || ''}\` : (val.details || 'Conectado')
+          details: val.error ? `ERRO: ${val.error} ${val.details || ''}` : (val.details || 'Conectado')
         }])
       })
 
       addLog('Diagnóstico finalizado.')
-      setStatus('success') // Permite continuar mesmo com erros, o usuário decide
+      setStatus('success')
 
     } catch (e: any) {
-      addLog(\`ERRO FATAL: \${e.message}\`)
+      addLog(`ERRO FATAL: ${e.message}`)
       setStatus('error')
     }
   }
@@ -60,7 +60,6 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 font-mono">
       <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
-        {/* Header */}
         <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
              <Shield className="w-6 h-6 text-purple-500" />
@@ -69,7 +68,6 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
           {status === 'running' && <RefreshCw className="w-5 h-5 animate-spin text-zinc-500" />}
         </div>
 
-        {/* Results List */}
         <div className="p-6 space-y-4 bg-black/50 min-h-[300px] max-h-[500px] overflow-y-auto">
           {results.map((r, i) => (
             <motion.div 
@@ -90,11 +88,9 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
               </div>
             </motion.div>
           ))}
-          
           {results.length === 0 && <div className="text-zinc-500 text-center py-10">Inicializando sondas...</div>}
         </div>
 
-        {/* Footer Actions */}
         <div className="p-6 border-t border-zinc-800 flex gap-4 bg-zinc-900">
            <button 
              onClick={runDiagnostics} 
@@ -113,7 +109,6 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
       
-      {/* Mini Log Console */}
       <div className="w-full max-w-2xl mt-4 p-2">
         <div className="text-xs text-zinc-600 mb-1">LIVE LOGS:</div>
         <div className="h-24 overflow-y-auto text-[10px] text-zinc-500 font-mono bg-black p-2 rounded border border-zinc-900">
