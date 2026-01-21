@@ -22,22 +22,16 @@ import { Loader2 } from 'lucide-react'
 
 function AppContent() {
   const [activeModule, setActiveModule] = useState<ModuleName>('plan-run')
-  // FORCE CHECK: Inicializa como false para obrigar a verificação
   const [systemCheckPassed, setSystemCheckPassed] = useState(false)
-  
   const { loading, loadingMessage } = useStore()
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth()
 
-  const handleSystemCheckComplete = () => {
-    setSystemCheckPassed(true)
-  }
-
-  // 1. System Check (Obrigatório antes de qualquer coisa)
+  // 1. CHECAGEM DE SISTEMA (Obrigatória no início)
   if (!systemCheckPassed) {
-    return <SystemCheck onComplete={handleSystemCheckComplete} />
+    return <SystemCheck onComplete={() => setSystemCheckPassed(true)} />
   }
 
-  // 2. Loading Auth
+  // 2. LOADING DE AUTENTICAÇÃO
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -46,12 +40,12 @@ function AppContent() {
     )
   }
 
-  // 3. Login
+  // 3. LOGIN
   if (!isAuthenticated) {
     return <LoginPage />
   }
 
-  // 4. Primeiro Acesso
+  // 4. CHANGE PASSWORD
   if (user?.primeiroAcesso) {
     return <ChangePasswordPage />
   }

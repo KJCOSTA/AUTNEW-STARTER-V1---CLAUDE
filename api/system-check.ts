@@ -5,10 +5,9 @@ const ENDPOINTS = {
   gemini: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
   openai: 'https://api.openai.com/v1/models',
   elevenlabs: 'https://api.elevenlabs.io/v1/user',
-  pexels: 'https://api.pexels.com/v1/search?query=test&per_page=1',
-  pixabay: 'https://pixabay.com/api/?q=test&per_page=3',
+  pexels: 'https://api.pexels.com/v1/search?query=nature&per_page=1',
+  pixabay: 'https://pixabay.com/api/?q=nature&per_page=3',
   stability: 'https://api.stability.ai/v1/user/account',
-  telegram: 'https://api.telegram.org',
   youtube: 'https://www.googleapis.com/youtube/v3/channels',
   json2video: 'https://api.json2video.com/v2/account'
 }
@@ -21,14 +20,14 @@ async function checkService(service: string, key: string, extra?: any) {
   try {
     switch (service) {
       case 'gemini':
-        response = await fetch(\`\${ENDPOINTS.gemini}?key=\${key}\`, {
+        response = await fetch(`${ENDPOINTS.gemini}?key=${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: 'Ping' }] }] })
         });
         break;
       case 'openai':
-        response = await fetch(ENDPOINTS.openai, { headers: { 'Authorization': \`Bearer \${key}\` } });
+        response = await fetch(ENDPOINTS.openai, { headers: { 'Authorization': `Bearer ${key}` } });
         break;
       case 'elevenlabs':
         response = await fetch(ENDPOINTS.elevenlabs, { headers: { 'xi-api-key': key } });
@@ -37,28 +36,28 @@ async function checkService(service: string, key: string, extra?: any) {
         response = await fetch(ENDPOINTS.pexels, { headers: { 'Authorization': key } });
         break;
       case 'stability':
-        response = await fetch(ENDPOINTS.stability, { headers: { 'Authorization': \`Bearer \${key}\` } });
+        response = await fetch(ENDPOINTS.stability, { headers: { 'Authorization': `Bearer ${key}` } });
         break;
       case 'json2video':
          response = await fetch(ENDPOINTS.json2video, { headers: { 'x-api-key': key } });
         break;
       case 'pixabay':
-        response = await fetch(\`\${ENDPOINTS.pixabay}&key=\${key}\`);
+        response = await fetch(`${ENDPOINTS.pixabay}&key=${key}`);
         break;
       case 'youtube':
-        const channelPart = extra?.channelId ? \`&id=\${extra.channelId}\` : '&id=UCuAXFkgsw1L7xaCfnd5JJOw';
-        response = await fetch(\`\${ENDPOINTS.youtube}?part=snippet\${channelPart}&key=\${key}\`);
+        const channelPart = extra?.channelId ? `&id=${extra.channelId}` : '&id=UCuAXFkgsw1L7xaCfnd5JJOw';
+        response = await fetch(`${ENDPOINTS.youtube}?part=snippet${channelPart}&key=${key}`);
         break;
       default:
-        throw new Error(\`Serviço desconhecido: \${service}\`);
+        throw new Error(`Serviço desconhecido: ${service}`);
     }
 
     const duration = Date.now() - start;
     data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const errorMsg = data.error?.message || data.description || data.detail || \`HTTP \${response.status}\`;
-      return { success: false, duration, message: \`Erro: \${errorMsg}\`, code: response.status };
+      const errorMsg = data.error?.message || data.description || data.detail || `HTTP ${response.status}`;
+      return { success: false, duration, message: `Erro: ${errorMsg}`, code: response.status };
     }
 
     if (service === 'youtube' && extra?.channelId && data.items?.length === 0) {
@@ -90,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Database Check
   try {
     const dbStart = Date.now();
-    await sql\`SELECT 1\`;
+    await sql`SELECT 1`;
     results.database = { success: true, duration: Date.now() - dbStart, message: 'Conectado ao NeonDB' };
   } catch (e: any) {
     results.database = { success: false, message: e.message };

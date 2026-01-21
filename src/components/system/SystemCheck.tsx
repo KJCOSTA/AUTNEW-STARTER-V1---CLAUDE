@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  ShieldCheck, AlertOctagon, Terminal, RefreshCw, Check, X, 
-  Key, ArrowRight, Database, ExternalLink, Activity, Mic, Video, Image, Cpu
+  ShieldCheck, RefreshCw, Check, X, 
+  ArrowRight, Database, ExternalLink, Mic, Video, Image, Cpu
 } from 'lucide-react'
 
-// Lista Completa de Serviços
 const SERVICES = [
   { id: 'database', name: 'Banco de Dados', icon: Database, required: true },
   { id: 'gemini', name: 'Gemini AI', icon: Cpu, required: true },
@@ -63,13 +62,13 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
           </div>
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              System Diagnostics V3
+              System Diagnostics
             </h1>
-            <p className="text-zinc-500 text-sm">Verificação em Tempo Real & Correção de Chaves</p>
+            <p className="text-zinc-500 text-sm">Verificação em Tempo Real (Produção)</p>
           </div>
         </div>
         <button onClick={runFullCheck} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:bg-zinc-800 disabled:opacity-50">
-          <RefreshCw className={\`w-4 h-4 \${loading ? 'animate-spin' : ''}\`} /> Re-Check
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Re-Check
         </button>
       </div>
 
@@ -79,11 +78,11 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
           const status = loading ? 'loading' : (result?.success ? 'success' : 'error')
           
           return (
-            <div key={service.id} className={\`relative overflow-hidden rounded-xl border p-4 transition-all \${status === 'success' ? 'bg-zinc-900/50 border-green-900/30' : status === 'error' ? 'bg-red-950/10 border-red-900/30' : 'bg-zinc-900 border-zinc-800'}\`}>
+            <div key={service.id} className={`relative overflow-hidden rounded-xl border p-4 transition-all ${status === 'success' ? 'bg-zinc-900/50 border-green-900/30' : status === 'error' ? 'bg-red-950/10 border-red-900/30' : 'bg-zinc-900 border-zinc-800'}`}>
               <div className="flex justify-between items-start">
                 <div className="flex gap-3">
-                  <div className={\`p-2 rounded-lg \${status === 'success' ? 'bg-green-500/10' : status === 'error' ? 'bg-red-500/10' : 'bg-zinc-800'}\`}>
-                    <service.icon className={\`w-5 h-5 \${status === 'success' ? 'text-green-400' : status === 'error' ? 'text-red-400' : 'text-zinc-500'}\`} />
+                  <div className={`p-2 rounded-lg ${status === 'success' ? 'bg-green-500/10' : status === 'error' ? 'bg-red-500/10' : 'bg-zinc-800'}`}>
+                    <service.icon className={`w-5 h-5 ${status === 'success' ? 'text-green-400' : status === 'error' ? 'text-red-400' : 'text-zinc-500'}`} />
                   </div>
                   <div>
                     <h3 className="font-semibold flex items-center gap-2">
@@ -99,9 +98,8 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
                 </div>
               </div>
 
-              {/* Input Manual para Correção */}
               {status === 'error' && !loading && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 pt-3 border-t border-red-900/20">
+                <div className="mt-3 pt-3 border-t border-red-900/20">
                   <label className="text-[10px] text-red-300 font-bold uppercase mb-1 block">Corrigir API Key:</label>
                   <div className="flex gap-2">
                     <input 
@@ -124,7 +122,7 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
                       ✅ Chave validada! Copie e salve na Vercel.
                     </div>
                   )}
-                </motion.div>
+                </div>
               )}
             </div>
           )
@@ -135,7 +133,7 @@ export function SystemCheck({ onComplete }: { onComplete: () => void }) {
         <button onClick={() => window.open('https://vercel.com/dashboard', '_blank')} className="px-6 py-3 bg-zinc-900 text-zinc-400 border border-zinc-800 rounded-xl hover:bg-zinc-800 flex items-center gap-2">
           Abrir Vercel <ExternalLink className="w-4 h-4" />
         </button>
-        <button onClick={onComplete} className={\`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition \${allRequiredPassed ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20' : 'bg-zinc-800 text-zinc-400'}\`}>
+        <button onClick={onComplete} className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition ${allRequiredPassed ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20' : 'bg-zinc-800 text-zinc-400'}`}>
           {allRequiredPassed ? 'Acessar Sistema' : 'Entrar Offline'} <ArrowRight className="w-5 h-5" />
         </button>
       </div>
