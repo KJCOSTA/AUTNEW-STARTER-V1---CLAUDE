@@ -48,24 +48,29 @@ async function handleAnthropic(_req: VercelRequest, res: VercelResponse, action:
   }
 
   if (action === 'test' || action === 'test-connection') {
-    const response = await fetch(API_URLS.anthropic, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 100,
-        messages: [{ role: 'user', content: 'Diga "OK" em uma palavra.' }],
-      }),
-    })
-    if (response.ok) {
-      return res.status(200).json({ success: true, connected: true, message: 'Claude conectado!' })
-    } else {
-      const errorData = await response.json().catch(() => ({}))
-      return res.status(400).json({ success: false, connected: false, message: errorData.error?.message || 'Erro na conexão com Claude' })
+    try {
+      const response = await fetch(API_URLS.anthropic, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 100,
+          messages: [{ role: 'user', content: 'Diga "OK" em uma palavra.' }],
+        }),
+      })
+      if (response.ok) {
+        return res.status(200).json({ success: true, connected: true, message: 'Claude conectado!' })
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        return res.status(400).json({ success: false, connected: false, message: errorData.error?.message || 'Erro na conexão com Claude' })
+      }
+    } catch (error: any) {
+      console.error('Anthropic connection test failed:', error)
+      return res.status(500).json({ success: false, connected: false, message: `Network error: ${error.message}` })
     }
   }
 
@@ -87,35 +92,47 @@ Retorne em formato JSON:
 
 Responda APENAS o JSON, sem texto adicional.`
 
-    const response = await fetch(API_URLS.anthropic, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-
-    const result = await response.json()
-    const text = result.content?.[0]?.text || '{}'
-
     try {
-      const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
-      const deepResearch = JSON.parse(cleanJson)
-      return res.status(200).json({ deepResearch })
-    } catch {
-      return res.status(200).json({
-        deepResearch: {
-          fatos: ['Erro ao processar pesquisa'],
-          curiosidades: [],
-          referencias: [],
+      const response = await fetch(API_URLS.anthropic, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
         },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: prompt }],
+        }),
       })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Anthropic API error:', errorData)
+        throw new Error(errorData.error?.message || 'Anthropic API request failed')
+      }
+
+      const result = await response.json()
+      const text = result.content?.[0]?.text || '{}'
+
+      try {
+        const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
+        const deepResearch = JSON.parse(cleanJson)
+        return res.status(200).json({ deepResearch })
+      } catch (parseError) {
+        console.error('JSON parsing error in deep-research:', parseError)
+        return res.status(200).json({
+          deepResearch: {
+            fatos: ['Erro ao processar pesquisa'],
+            curiosidades: [],
+            referencias: [],
+          },
+        })
+      }
+    } catch (error: any) {
+      console.error('Deep research request failed:', error)
+      return res.status(500).json({ error: `Deep research failed: ${error.message}` })
     }
   }
 
@@ -150,29 +167,41 @@ IMPORTANTE:
 
 Responda APENAS o JSON, sem texto adicional.`
 
-    const response = await fetch(API_URLS.anthropic, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-
-    const result = await response.json()
-    const text = result.content?.[0]?.text || '{}'
-
     try {
-      const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
-      const parsed = JSON.parse(cleanJson)
-      return res.status(200).json(parsed)
-    } catch {
-      return res.status(200).json({ options: [] })
+      const response = await fetch(API_URLS.anthropic, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2048,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Anthropic API error:', errorData)
+        throw new Error(errorData.error?.message || 'Failed to generate options')
+      }
+
+      const result = await response.json()
+      const text = result.content?.[0]?.text || '{}'
+
+      try {
+        const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
+        const parsed = JSON.parse(cleanJson)
+        return res.status(200).json(parsed)
+      } catch (parseError) {
+        console.error('JSON parsing error in generate-options:', parseError)
+        return res.status(200).json({ options: [] })
+      }
+    } catch (error: any) {
+      console.error('Generate options request failed:', error)
+      return res.status(500).json({ error: `Failed to generate options: ${error.message}` })
     }
   }
 
@@ -209,49 +238,71 @@ REGRAS:
 
 Retorne APENAS o roteiro formatado com timestamps.`
 
-    const response = await fetch(API_URLS.anthropic, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
+    try {
+      const response = await fetch(API_URLS.anthropic, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
 
-    const result = await response.json()
-    const script = result.content?.[0]?.text || ''
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Anthropic API error:', errorData)
+        throw new Error(errorData.error?.message || 'Failed to generate script')
+      }
 
-    return res.status(200).json({ script })
+      const result = await response.json()
+      const script = result.content?.[0]?.text || ''
+
+      return res.status(200).json({ script })
+    } catch (error: any) {
+      console.error('Generate script request failed:', error)
+      return res.status(500).json({ error: `Failed to generate script: ${error.message}` })
+    }
   }
 
   if (action === 'prompt') {
-    const response = await fetch(API_URLS.anthropic, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: data.maxTokens || 4096,
-        messages: [{ role: 'user', content: data.prompt }],
-      }),
-    })
+    try {
+      const response = await fetch(API_URLS.anthropic, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: data.maxTokens || 4096,
+          messages: [{ role: 'user', content: data.prompt }],
+        }),
+      })
 
-    const result = await response.json()
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Anthropic API error:', errorData)
+        throw new Error(errorData.error?.message || 'Prompt request failed')
+      }
 
-    return res.status(200).json({
-      success: true,
-      content: result.content?.[0]?.text || '',
-      model: 'claude-3-5-sonnet',
-      usage: result.usage,
-    })
+      const result = await response.json()
+
+      return res.status(200).json({
+        success: true,
+        content: result.content?.[0]?.text || '',
+        model: 'claude-3-5-sonnet',
+        usage: result.usage,
+      })
+    } catch (error: any) {
+      console.error('Prompt request failed:', error)
+      return res.status(500).json({ error: `Prompt request failed: ${error.message}` })
+    }
   }
 
   return res.status(400).json({ error: 'Invalid action' })
@@ -265,41 +316,57 @@ async function handleOpenAI(_req: VercelRequest, res: VercelResponse, action: st
   }
 
   if (action === 'test' || action === 'test-connection') {
-    const response = await fetch(`${API_URLS.openai}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    })
-    if (response.ok) {
-      return res.status(200).json({ success: true, connected: true, message: 'OpenAI conectado!' })
-    } else {
-      return res.status(400).json({ success: false, connected: false, message: 'Erro na conexão com OpenAI' })
+    try {
+      const response = await fetch(`${API_URLS.openai}/models`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
+      if (response.ok) {
+        return res.status(200).json({ success: true, connected: true, message: 'OpenAI conectado!' })
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        return res.status(400).json({ success: false, connected: false, message: errorData.error?.message || 'Erro na conexão com OpenAI' })
+      }
+    } catch (error: any) {
+      console.error('OpenAI connection test failed:', error)
+      return res.status(500).json({ success: false, connected: false, message: `Network error: ${error.message}` })
     }
   }
 
   if (action === 'generate-thumbnail') {
-    const response = await fetch(`${API_URLS.openai}/images/generations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'dall-e-3',
-        prompt: `Create a YouTube thumbnail image for a spiritual/prayer channel. Style: warm, celestial, hopeful. ${data.prompt}. NO TEXT in the image. Aspect ratio 16:9.`,
-        n: 1,
-        size: '1792x1024',
-        quality: 'standard',
-      }),
-    })
+    try {
+      const response = await fetch(`${API_URLS.openai}/images/generations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt: `Create a YouTube thumbnail image for a spiritual/prayer channel. Style: warm, celestial, hopeful. ${data.prompt}. NO TEXT in the image. Aspect ratio 16:9.`,
+          n: 1,
+          size: '1792x1024',
+          quality: 'standard',
+        }),
+      })
 
-    if (!response.ok) {
-      const error = await response.json()
-      return res.status(400).json({ error: error.error?.message || 'Failed to generate image' })
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        console.error('OpenAI image generation error:', error)
+        return res.status(400).json({ error: error.error?.message || 'Failed to generate image' })
+      }
+
+      const result = await response.json()
+      const imageUrl = result.data?.[0]?.url
+
+      if (!imageUrl) {
+        throw new Error('No image URL returned from OpenAI')
+      }
+
+      return res.status(200).json({ imageUrl })
+    } catch (error: any) {
+      console.error('Thumbnail generation failed:', error)
+      return res.status(500).json({ error: `Failed to generate thumbnail: ${error.message}` })
     }
-
-    const result = await response.json()
-    const imageUrl = result.data?.[0]?.url
-
-    return res.status(200).json({ imageUrl })
   }
 
   return res.status(400).json({ error: 'Invalid action' })
@@ -313,18 +380,23 @@ async function handleGemini(_req: VercelRequest, res: VercelResponse, action: st
   }
 
   if (action === 'test' || action === 'test-connection') {
-    const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: 'Diga "OK" em uma palavra.' }] }],
-      }),
-    })
-    if (response.ok) {
-      return res.status(200).json({ success: true, connected: true, message: 'Gemini conectado!' })
-    } else {
-      const errorData = await response.json().catch(() => ({}))
-      return res.status(400).json({ success: false, connected: false, message: errorData.error?.message || 'Erro na conexão com Gemini' })
+    try {
+      const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Diga "OK" em uma palavra.' }] }],
+        }),
+      })
+      if (response.ok) {
+        return res.status(200).json({ success: true, connected: true, message: 'Gemini conectado!' })
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        return res.status(400).json({ success: false, connected: false, message: errorData.error?.message || 'Erro na conexão com Gemini' })
+      }
+    } catch (error: any) {
+      console.error('Gemini connection test failed:', error)
+      return res.status(500).json({ success: false, connected: false, message: `Network error: ${error.message}` })
     }
   }
 
@@ -363,41 +435,53 @@ Retorne em formato JSON:
 
 Responda APENAS o JSON, sem texto adicional.`
 
-    const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7 },
-      }),
-    })
-
-    const result = await response.json()
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
-
     try {
-      const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
-      const analysisData = JSON.parse(cleanJson)
-      return res.status(200).json(analysisData)
-    } catch {
-      return res.status(200).json({
-        deepResearch: {
-          fatos: [`O tema "${tema}" é muito relevante no nicho espiritual`, 'Vídeos de oração têm alta retenção'],
-          curiosidades: ['Thumbnails com luz dourada performam melhor'],
-          referencias: ['Salmo 23:1', 'Filipenses 4:6-7', 'Mateus 6:9-13'],
-        },
-        analiseCanal: {
-          padroesSuccesso: ['Narração calma e pausada', 'Música ambiente suave'],
-          melhoresHorarios: ['6h da manhã', '20h'],
-          retencaoMedia: '75%',
-          gatilhosEfetivos: ['esperança', 'paz'],
-        },
-        analiseConcorrente: {
-          elementosVirais: ['Títulos com palavras poderosas', 'Thumbnails com luz celestial'],
-          estruturaNarrativa: ['Abertura emocional', 'Desenvolvimento gradual', 'Fechamento esperançoso'],
-          duracaoIdeal: '10 minutos',
-        },
+      const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7 },
+        }),
       })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Gemini API error:', errorData)
+        throw new Error(errorData.error?.message || 'Gemini API request failed')
+      }
+
+      const result = await response.json()
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+
+      try {
+        const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
+        const analysisData = JSON.parse(cleanJson)
+        return res.status(200).json(analysisData)
+      } catch (parseError) {
+        console.error('JSON parsing error in analyze:', parseError)
+        return res.status(200).json({
+          deepResearch: {
+            fatos: [`O tema "${tema}" é muito relevante no nicho espiritual`, 'Vídeos de oração têm alta retenção'],
+            curiosidades: ['Thumbnails com luz dourada performam melhor'],
+            referencias: ['Salmo 23:1', 'Filipenses 4:6-7', 'Mateus 6:9-13'],
+          },
+          analiseCanal: {
+            padroesSuccesso: ['Narração calma e pausada', 'Música ambiente suave'],
+            melhoresHorarios: ['6h da manhã', '20h'],
+            retencaoMedia: '75%',
+            gatilhosEfetivos: ['esperança', 'paz'],
+          },
+          analiseConcorrente: {
+            elementosVirais: ['Títulos com palavras poderosas', 'Thumbnails com luz celestial'],
+            estruturaNarrativa: ['Abertura emocional', 'Desenvolvimento gradual', 'Fechamento esperançoso'],
+            duracaoIdeal: '10 minutos',
+          },
+        })
+      }
+    } catch (error: any) {
+      console.error('Gemini analyze request failed:', error)
+      return res.status(500).json({ error: `Analysis failed: ${error.message}` })
     }
   }
 
@@ -419,30 +503,42 @@ Retorne em formato JSON:
 
 Responda APENAS o JSON, sem texto adicional.`
 
-    const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7 },
-      }),
-    })
-
-    const result = await response.json()
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
-
     try {
-      const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
-      const deepResearch = JSON.parse(cleanJson)
-      return res.status(200).json({ deepResearch })
-    } catch {
-      return res.status(200).json({
-        deepResearch: {
-          fatos: ['Erro ao processar pesquisa'],
-          curiosidades: [],
-          referencias: [],
-        },
+      const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7 },
+        }),
       })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Gemini API error:', errorData)
+        throw new Error(errorData.error?.message || 'Gemini deep-research request failed')
+      }
+
+      const result = await response.json()
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+
+      try {
+        const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
+        const deepResearch = JSON.parse(cleanJson)
+        return res.status(200).json({ deepResearch })
+      } catch (parseError) {
+        console.error('JSON parsing error in Gemini deep-research:', parseError)
+        return res.status(200).json({
+          deepResearch: {
+            fatos: ['Erro ao processar pesquisa'],
+            curiosidades: [],
+            referencias: [],
+          },
+        })
+      }
+    } catch (error: any) {
+      console.error('Gemini deep-research request failed:', error)
+      return res.status(500).json({ error: `Deep research failed: ${error.message}` })
     }
   }
 
@@ -477,24 +573,36 @@ IMPORTANTE:
 
 Responda APENAS o JSON, sem texto adicional.`
 
-    const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.9 },
-      }),
-    })
-
-    const result = await response.json()
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
-
     try {
-      const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
-      const parsed = JSON.parse(cleanJson)
-      return res.status(200).json(parsed)
-    } catch {
-      return res.status(200).json({ options: [] })
+      const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.9 },
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Gemini API error:', errorData)
+        throw new Error(errorData.error?.message || 'Failed to generate options')
+      }
+
+      const result = await response.json()
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+
+      try {
+        const cleanJson = text.replace(/```json\n?|\n?```/g, '').trim()
+        const parsed = JSON.parse(cleanJson)
+        return res.status(200).json(parsed)
+      } catch (parseError) {
+        console.error('JSON parsing error in Gemini generate-options:', parseError)
+        return res.status(200).json({ options: [] })
+      }
+    } catch (error: any) {
+      console.error('Gemini generate-options request failed:', error)
+      return res.status(500).json({ error: `Failed to generate options: ${error.message}` })
     }
   }
 
@@ -531,19 +639,30 @@ REGRAS:
 
 Retorne APENAS o roteiro formatado com timestamps.`
 
-    const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
-      }),
-    })
+    try {
+      const response = await fetch(`${API_URLS.gemini}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+        }),
+      })
 
-    const result = await response.json()
-    const script = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Gemini API error:', errorData)
+        throw new Error(errorData.error?.message || 'Failed to generate script')
+      }
 
-    return res.status(200).json({ script })
+      const result = await response.json()
+      const script = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+      return res.status(200).json({ script })
+    } catch (error: any) {
+      console.error('Gemini generate-script request failed:', error)
+      return res.status(500).json({ error: `Failed to generate script: ${error.message}` })
+    }
   }
 
   return res.status(400).json({ error: 'Invalid action' })
@@ -563,61 +682,76 @@ async function handleGroq(_req: VercelRequest, res: VercelResponse, action: stri
   const { prompt, model = 'llama-3.1-70b-versatile', maxTokens = 2048 } = data
 
   if (action === 'test' || action === 'test-connection') {
-    const response = await fetch(`${API_URLS.groq}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [{ role: 'user', content: 'Diga "OK" em uma palavra.' }],
-        max_tokens: 10,
-      }),
-    })
-
-    if (response.ok) {
-      return res.status(200).json({
-        success: true,
-        connected: true,
-        message: 'Groq conectado!'
+    try {
+      const response = await fetch(`${API_URLS.groq}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'user', content: 'Diga "OK" em uma palavra.' }],
+          max_tokens: 10,
+        }),
       })
-    } else {
-      const error = await response.json().catch(() => ({}))
-      return res.status(400).json({
+
+      if (response.ok) {
+        return res.status(200).json({
+          success: true,
+          connected: true,
+          message: 'Groq conectado!'
+        })
+      } else {
+        const error = await response.json().catch(() => ({}))
+        return res.status(400).json({
+          success: false,
+          connected: false,
+          message: error.error?.message || 'Erro na conexão com Groq'
+        })
+      }
+    } catch (error: any) {
+      console.error('Groq connection test failed:', error)
+      return res.status(500).json({
         success: false,
         connected: false,
-        message: error.error?.message || 'Erro na conexão com Groq'
+        message: `Network error: ${error.message}`
       })
     }
   }
 
   if (action === 'chat') {
-    const response = await fetch(`${API_URLS.groq}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: maxTokens,
-        temperature: 0.7,
-      }),
-    })
+    try {
+      const response = await fetch(`${API_URLS.groq}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: maxTokens,
+          temperature: 0.7,
+        }),
+      })
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      return res.status(400).json({ error: error.error?.message || 'Chat request failed' })
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        console.error('Groq API error:', error)
+        return res.status(400).json({ error: error.error?.message || 'Chat request failed' })
+      }
+
+      const responseData = await response.json()
+      return res.status(200).json({
+        content: responseData.choices?.[0]?.message?.content || '',
+        model: responseData.model,
+        usage: responseData.usage,
+      })
+    } catch (error: any) {
+      console.error('Groq chat request failed:', error)
+      return res.status(500).json({ error: `Chat request failed: ${error.message}` })
     }
-
-    const responseData = await response.json()
-    return res.status(200).json({
-      content: responseData.choices?.[0]?.message?.content || '',
-      model: responseData.model,
-      usage: responseData.usage,
-    })
   }
 
   return res.status(400).json({ error: 'Invalid action' })

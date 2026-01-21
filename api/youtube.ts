@@ -9,31 +9,50 @@ const YOUTUBE_API_URL = 'https://www.googleapis.com/youtube/v3'
 
 // Helper functions
 function extractVideoId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
-    /youtube\.com\/shorts\/([^&\n?#]+)/,
-  ]
+  try {
+    if (!url || typeof url !== 'string') {
+      console.error('Invalid URL provided to extractVideoId')
+      return null
+    }
 
-  for (const pattern of patterns) {
-    const match = url.match(pattern)
-    if (match) return match[1]
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+      /youtube\.com\/shorts\/([^&\n?#]+)/,
+    ]
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match) return match[1]
+    }
+
+    return null
+  } catch (error: any) {
+    console.error('Error extracting video ID:', error)
+    return null
   }
-
-  return null
 }
 
 function parseDuration(isoDuration: string): string {
-  const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  if (!match) return '0:00'
+  try {
+    if (!isoDuration || typeof isoDuration !== 'string') {
+      return '0:00'
+    }
 
-  const hours = parseInt(match[1] || '0')
-  const minutes = parseInt(match[2] || '0')
-  const seconds = parseInt(match[3] || '0')
+    const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+    if (!match) return '0:00'
 
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    const hours = parseInt(match[1] || '0')
+    const minutes = parseInt(match[2] || '0')
+    const seconds = parseInt(match[3] || '0')
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  } catch (error: any) {
+    console.error('Error parsing duration:', error)
+    return '0:00'
   }
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
 function formatNumber(num: number): string {
@@ -56,12 +75,20 @@ async function handleMetadata(body: Record<string, unknown>, apiKey: string) {
   }
 
   // Fetch video details
-  const videoResponse = await fetch(
-    `${YOUTUBE_API_URL}/videos?id=${videoId}&part=snippet,statistics,contentDetails&key=${apiKey}`
-  )
+  let videoResponse
+  try {
+    videoResponse = await fetch(
+      `${YOUTUBE_API_URL}/videos?id=${videoId}&part=snippet,statistics,contentDetails&key=${apiKey}`
+    )
 
-  if (!videoResponse.ok) {
-    throw new Error('Failed to fetch video data')
+    if (!videoResponse.ok) {
+      const errorData = await videoResponse.json().catch(() => ({}))
+      console.error('YouTube API error fetching video:', errorData)
+      throw new Error(errorData.error?.message || 'Failed to fetch video data')
+    }
+  } catch (error: any) {
+    console.error('Network error fetching video data:', error)
+    throw new Error(`Failed to fetch video data: ${error.message}`)
   }
 
   const videoData = await videoResponse.json()
@@ -74,17 +101,24 @@ async function handleMetadata(body: Record<string, unknown>, apiKey: string) {
   const { snippet, statistics, contentDetails } = video
 
   // Fetch channel details for subscriber count
-  const channelResponse = await fetch(
-    `${YOUTUBE_API_URL}/channels?id=${snippet.channelId}&part=statistics&key=${apiKey}`
-  )
-
   let subscriberCount = '0'
-  if (channelResponse.ok) {
-    const channelData = await channelResponse.json()
-    const channel = channelData.items?.[0]
-    if (channel?.statistics?.subscriberCount) {
-      subscriberCount = formatNumber(parseInt(channel.statistics.subscriberCount))
+  try {
+    const channelResponse = await fetch(
+      `${YOUTUBE_API_URL}/channels?id=${snippet.channelId}&part=statistics&key=${apiKey}`
+    )
+
+    if (channelResponse.ok) {
+      const channelData = await channelResponse.json()
+      const channel = channelData.items?.[0]
+      if (channel?.statistics?.subscriberCount) {
+        subscriberCount = formatNumber(parseInt(channel.statistics.subscriberCount))
+      }
+    } else {
+      console.warn('Failed to fetch channel subscriber count')
     }
+  } catch (error: any) {
+    console.error('Error fetching channel data:', error)
+    // Non-critical error, continue with default subscriber count
   }
 
   // Calculate days since publication
@@ -120,12 +154,20 @@ async function handleAnalytics(body: Record<string, unknown>, apiKey: string) {
   }
 
   // Get channel statistics
-  const channelResponse = await fetch(
-    `${YOUTUBE_API_URL}/channels?id=${channelId}&part=statistics,snippet&key=${apiKey}`
-  )
+  let channelResponse
+  try {
+    channelResponse = await fetch(
+      `${YOUTUBE_API_URL}/channels?id=${channelId}&part=statistics,snippet&key=${apiKey}`
+    )
 
-  if (!channelResponse.ok) {
-    throw new Error('Failed to fetch channel data')
+    if (!channelResponse.ok) {
+      const errorData = await channelResponse.json().catch(() => ({}))
+      console.error('YouTube API error fetching channel:', errorData)
+      throw new Error(errorData.error?.message || 'Failed to fetch channel data')
+    }
+  } catch (error: any) {
+    console.error('Network error fetching channel data:', error)
+    throw new Error(`Failed to fetch channel data: ${error.message}`)
   }
 
   const channelData = await channelResponse.json()
@@ -136,14 +178,21 @@ async function handleAnalytics(body: Record<string, unknown>, apiKey: string) {
   }
 
   // Get recent videos for performance analysis
-  const videosResponse = await fetch(
-    `${YOUTUBE_API_URL}/search?channelId=${channelId}&part=id&order=date&type=video&maxResults=10&key=${apiKey}`
-  )
-
   let recentVideos: unknown[] = []
-  if (videosResponse.ok) {
-    const videosData = await videosResponse.json()
-    recentVideos = videosData.items || []
+  try {
+    const videosResponse = await fetch(
+      `${YOUTUBE_API_URL}/search?channelId=${channelId}&part=id&order=date&type=video&maxResults=10&key=${apiKey}`
+    )
+
+    if (videosResponse.ok) {
+      const videosData = await videosResponse.json()
+      recentVideos = videosData.items || []
+    } else {
+      console.warn('Failed to fetch recent videos for analytics')
+    }
+  } catch (error: any) {
+    console.error('Error fetching recent videos:', error)
+    // Non-critical error, continue with empty array
   }
 
   return {
