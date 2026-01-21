@@ -1,4 +1,6 @@
-export default async function handler(req, res) {
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { topic } = req.body || {};
 
@@ -41,7 +43,7 @@ export default async function handler(req, res) {
         console.warn('[GENERATE PLAN] OpenAI integration not implemented yet, using fallback');
         // Fall through to fallback
       } catch (e) {
-        console.error('[GENERATE PLAN] OpenAI API failed:', e.message);
+        console.error('[GENERATE PLAN] OpenAI API failed:', (e as Error).message);
         // Fall through to fallback
       }
     } else {

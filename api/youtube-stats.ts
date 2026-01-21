@@ -1,4 +1,6 @@
-export default async function handler(req, res) {
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Validate authentication token
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -36,7 +38,7 @@ export default async function handler(req, res) {
           });
         }
       } catch (err) {
-        console.error('[YOUTUBE API] Failed to fetch real data:', err.message);
+        console.error('[YOUTUBE API] Failed to fetch real data:', (err as Error).message);
         // Fall through to fallback
       }
     } else {

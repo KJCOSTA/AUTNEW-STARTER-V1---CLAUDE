@@ -91,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[INIT-DB] Error:', error)
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: (error as Error).message
     })
   }
 }

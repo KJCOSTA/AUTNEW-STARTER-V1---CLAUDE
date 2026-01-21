@@ -1,6 +1,8 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+
 import { sql } from '@vercel/postgres';
 
-export default async function handler(req, res) {
+export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {
     // Tenta uma query simples no banco (apenas pega a hora atual)
     const startTime = Date.now();
@@ -23,7 +25,7 @@ export default async function handler(req, res) {
     console.error('Erro de conexão:', error);
     return res.status(500).json({
       status: '❌ ERRO DE CONEXÃO',
-      message: error.message,
+      message: (error as Error).message,
       hint: 'Verifique se a variável POSTGRES_URL está correta no Vercel Settings',
     });
   }

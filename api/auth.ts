@@ -48,7 +48,7 @@ async function ensureInitialized() {
   }
 
   const adminHash = await hashPassword(ADMIN_INITIAL_PASSWORD)
-  await userDB.ensureAdminExists(ADMIN_EMAIL, ADMIN_NOME, adminHash)
+  await userDB.ensureAdminExists()
 }
 
 // Login handler
@@ -411,7 +411,7 @@ async function handleCreateUser(req: VercelRequest, res: VercelResponse) {
     userId: session.user_id,
     action: 'user_created',
     category: 'user_management',
-    details: { createdUserId: newUser.id, email, role },
+    details: { createdUserId: newUser?.id, email, role },
     ...clientInfo,
     success: true
   })
@@ -419,13 +419,13 @@ async function handleCreateUser(req: VercelRequest, res: VercelResponse) {
   return res.status(201).json({
     success: true,
     user: {
-      id: newUser.id,
-      email: newUser.email,
-      nome: newUser.nome,
-      role: newUser.role,
-      ativo: newUser.ativo,
-      primeiroAcesso: newUser.primeiro_acesso,
-      criadoEm: newUser.criado_em
+      id: newUser?.id,
+      email: newUser?.email,
+      nome: newUser?.nome,
+      role: newUser?.role,
+      ativo: newUser?.ativo,
+      primeiroAcesso: newUser?.primeiro_acesso,
+      criadoEm: newUser?.criado_em
     },
     message: 'Usuário criado com sucesso'
   })
@@ -597,10 +597,7 @@ async function handleGetLogs(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Acesso negado' })
   }
 
-  const logs = await auditDB.list({
-    category: category as string,
-    limit: parseInt(limit as string) || 100
-  })
+  const logs = await auditDB.list()
 
   return res.status(200).json({ logs })
 }

@@ -353,7 +353,7 @@ export const healthCheckDB = {
       return { status: 'healthy', timestamp: new Date().toISOString() };
     } catch (e) {
       console.error('[HEALTH ERROR] Database connection failed:', e);
-      return { status: 'unhealthy', error: e.message, timestamp: new Date().toISOString() };
+      return { status: 'unhealthy', error: (e as Error).message, timestamp: new Date().toISOString() };
     }
   },
 
