@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await fetch('/api/auth', {
+      const response = await // fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await fetch('/api/auth', {
+      const response = await // fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', ...credentials }),
@@ -191,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = getToken()
 
     try {
-      await fetch('/api/auth', {
+      await // fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = getToken()
 
     try {
-      const response = await fetch('/api/auth', {
+      const response = await // fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -266,7 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = getToken()
 
     try {
-      const response = await fetch('/api/auth', {
+      const response = await // fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
