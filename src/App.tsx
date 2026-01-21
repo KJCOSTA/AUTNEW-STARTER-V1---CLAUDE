@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Layout } from './components/layout/Layout'
 import { ToastContainer } from './components/ui/Toast'
 import { Loading } from './components/ui/Loading'
@@ -117,6 +118,9 @@ function AppContent() {
 
       {/* Toast Notifications */}
       <ToastContainer />
+
+      {/* Speed Insights */}
+      <SpeedInsights />
 
       {/* Global Loading Overlay */}
       <AnimatePresence>
