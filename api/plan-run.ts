@@ -1,13 +1,11 @@
-cat > api/plan-run.ts << 'EOF'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+
 /**
  * AUTNEW – CORE API
  * Runtime: Vercel Serverless (Node.js)
- * Frontend: Vite
  */
 
-type EnvAliases = Record<string, string[]>;
-
-const ENV: EnvAliases = {
+const ENV = {
   OPENAI_API_KEY: ['OPENAI_API_KEY'],
   YOUTUBE_API_KEY: ['YOUTUBE_API_KEY', 'YOUTUBEDATA_API_KEY'],
   CHANNEL_ID: ['CHANNEL_ID', 'YOUTUBE_CHANNEL_ID'],
@@ -20,105 +18,66 @@ function getEnv(name: keyof typeof ENV): string {
       return value;
     }
   }
-  throw new Error(
-    `Missing environment variable: ${name} (aliases: ${ENV[name].join(', ')})`
-  );
+  return ''; // Retorna vazio se não achar, para tratar depois
 }
 
-async function fetchYouTubeChannel() {
-  const apiKey = getEnv('YOUTUBE_API_KEY');
-  const channelId = getEnv('CHANNEL_ID');
-
-  const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${channelId}&key=${apiKey}`
-  );
-
-  if (!res.ok) {
-    throw new Error(`YouTube API error: ${res.status}`);
-  }
-
-  const data = await res.json();
-
-  if (!data.items || !data.items[0]) {
-    throw new Error('YouTube API returned no channel data');
-  }
-
-  return data.items[0];
-}
-
-async function generatePlan(topic: string) {
-  const apiKey = getEnv('OPENAI_API_KEY');
-
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Você é o AUTNEW. Gere planos estratégicos reais e executáveis.',
-        },
-        {
-          role: 'user',
-          content: topic,
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`OpenAI API error: ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
-}
-
-export default async function handler(req: Request): Promise<Response> {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== 'POST') {
-      return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
-        { status: 405 }
-      );
+      return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const topic =
-      typeof body.topic === 'string'
-        ? body.topic
-        : 'Plano Estratégico AUTNEW';
+    const { topic = 'Plano Estratégico AUTNEW' } = req.body || {};
+    
+    // Validar chaves
+    const ytKey = getEnv('YOUTUBE_API_KEY');
+    const channelId = getEnv('CHANNEL_ID');
+    const openAiKey = getEnv('OPENAI_API_KEY');
 
-    const channel = await fetchYouTubeChannel();
-    const plan = await generatePlan(topic);
+    if (!ytKey || !channelId) throw new Error('Configuração do YouTube ausente');
+    if (!openAiKey) throw new Error('Configuração da OpenAI ausente');
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        source: 'REAL_APIS',
-        channel: {
-          title: channel.snippet.title,
-          statistics: channel.statistics,
-        },
-        plan,
+    // 1. Fetch YouTube Data
+    const ytRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${channelId}&key=${ytKey}`
+    );
+    
+    if (!ytRes.ok) throw new Error(`YouTube API error: ${ytRes.status}`);
+    const ytData = await ytRes.json();
+    const channelItem = ytData.items?.[0];
+
+    // 2. Generate Plan
+    const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'Você é o AUTNEW. Gere planos estratégicos reais.' },
+          { role: 'user', content: topic },
+        ],
       }),
-      { status: 200 }
-    );
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Unknown error';
+    });
 
-    console.error('[PLAN-RUN ERROR]', message);
+    if (!aiRes.ok) throw new Error(`OpenAI API error: ${aiRes.status}`);
+    const aiData = await aiRes.json();
+    const planText = aiData.choices?.[0]?.message?.content || '';
 
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status: 500 }
-    );
+    return res.status(200).json({
+      success: true,
+      source: 'REAL_APIS',
+      channel: channelItem ? {
+        title: channelItem.snippet.title,
+        statistics: channelItem.statistics,
+      } : null,
+      plan: planText,
+    });
+
+  } catch (err: any) {
+    console.error('[PLAN-RUN ERROR]', err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
-EOF
