@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Layout } from './components/layout/Layout'
@@ -15,14 +15,51 @@ import {
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { LoginPage } from './components/auth/LoginPage'
 import { ChangePasswordPage } from './components/auth/ChangePasswordPage'
+import { SystemCheck } from './components/system/SystemCheck'
 import { useStore } from './store/useStore'
 import type { ModuleName } from './types'
 import { Loader2 } from 'lucide-react'
 
+// Key for localStorage to remember if system check passed
+const SYSTEM_CHECK_KEY = 'autnew_system_check_passed'
+const SYSTEM_CHECK_EXPIRY = 1000 * 60 * 60 // 1 hour
+
 function AppContent() {
   const [activeModule, setActiveModule] = useState<ModuleName>('plan-run')
+  const [systemCheckPassed, setSystemCheckPassed] = useState<boolean | null>(null)
   const { loading, loadingMessage } = useStore()
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth()
+
+  // Check if system check was recently passed
+  useEffect(() => {
+    const stored = localStorage.getItem(SYSTEM_CHECK_KEY)
+    if (stored) {
+      const { timestamp } = JSON.parse(stored)
+      const isValid = Date.now() - timestamp < SYSTEM_CHECK_EXPIRY
+      setSystemCheckPassed(isValid)
+    } else {
+      setSystemCheckPassed(false)
+    }
+  }, [])
+
+  const handleSystemCheckComplete = () => {
+    localStorage.setItem(SYSTEM_CHECK_KEY, JSON.stringify({ timestamp: Date.now() }))
+    setSystemCheckPassed(true)
+  }
+
+  // Show loading while checking system check status
+  if (systemCheckPassed === null) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent-purple" />
+      </div>
+    )
+  }
+
+  // Show system check if not passed
+  if (!systemCheckPassed) {
+    return <SystemCheck onComplete={handleSystemCheckComplete} />
+  }
 
   // Show loading while checking auth
   if (isLoading) {
