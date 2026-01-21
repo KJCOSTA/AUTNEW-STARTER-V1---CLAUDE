@@ -3,10 +3,10 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db.js'
 
-const SESSION_DURATION_HOURS = 24
+// SESSÃO DE 30 DIAS (Você pediu para parar de logar toda hora)
+const SESSION_DURATION_HOURS = 720 
 const OLD_ADMIN_EMAIL = 'kleiton@autnew.com'
 
-// Helper simples para comparar senha (único necessário para login)
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return bcrypt.compare(password, hash)
 }
@@ -24,7 +24,6 @@ function getClientInfo(req: VercelRequest) {
 
 async function ensureInitialized() {
   await initializeDatabase()
-  // Limpeza silenciosa de usuário antigo, se existir
   const old = await userDB.findByEmail(OLD_ADMIN_EMAIL)
   if (old) {
     await sessionDB.deleteByUserId(old.id)
@@ -33,7 +32,6 @@ async function ensureInitialized() {
   await userDB.ensureAdminExists()
 }
 
-// Handler de Login Ultra-Simplificado e Seguro
 async function handleLogin(req: VercelRequest, res: VercelResponse) {
   const { email, senha } = req.body
   const clientInfo = getClientInfo(req)
@@ -80,7 +78,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (action === 'login') return await handleLogin(req, res)
     
-    // Check de sessão básico
     if (action === 'session') {
        const token = req.headers.authorization?.replace('Bearer ', '')
        if(!token) return res.status(401).json({error: 'No token'})
@@ -89,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        return res.status(200).json({ success: true, user: { id: session.user_id, email: session.email, role: session.role }})
     }
     
-    return res.status(400).json({ error: 'Action not supported in safe mode' })
+    return res.status(400).json({ error: 'Action not supported' })
 
   } catch (e: any) {
     console.error('Auth Error:', e)
