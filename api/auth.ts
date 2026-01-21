@@ -1,4 +1,4 @@
-himport type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db.js'
