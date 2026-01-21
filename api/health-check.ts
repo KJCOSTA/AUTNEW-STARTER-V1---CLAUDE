@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { healthCheckDB, sessionDB, auditDB } from './lib/db'
+import { healthCheckDB, sessionDB, auditDB } from './lib/db.js'
 
 interface APIHealthResult {
   name: string
