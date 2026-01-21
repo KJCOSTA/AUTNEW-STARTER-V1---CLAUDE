@@ -36,6 +36,7 @@ export function SystemCheck({ onComplete, onSkip }: SystemCheckProps) {
     { name: 'Banco de Dados', status: 'pending', message: 'Aguardando...' },
     { name: 'Variáveis de Ambiente', status: 'pending', message: 'Aguardando...' },
     { name: 'APIs Configuradas', status: 'pending', message: 'Aguardando...' },
+    { name: 'Conexão Real APIs', status: 'pending', message: 'Aguardando...' },
   ])
   const [isRunning, setIsRunning] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
@@ -128,6 +129,7 @@ export function SystemCheck({ onComplete, onSkip }: SystemCheckProps) {
       { name: 'Banco de Dados', status: 'pending', message: 'Aguardando...' },
       { name: 'Variáveis de Ambiente', status: 'pending', message: 'Aguardando...' },
       { name: 'APIs Configuradas', status: 'pending', message: 'Aguardando...' },
+      { name: 'Conexão Real APIs', status: 'pending', message: 'Aguardando...' },
     ])
 
     const results: CheckResult[] = []
@@ -302,6 +304,57 @@ export function SystemCheck({ onComplete, onSkip }: SystemCheckProps) {
     }
     updateCheck(3, results[3])
 
+    // Check 5: Real API Connection Tests (deep=true)
+    updateCheck(4, { status: 'checking', message: 'Testando conexão real com APIs...' })
+    const deepApiStart = Date.now()
+    try {
+      const response = await fetch('/api/system-check?check=apis&deep=true')
+      const deepApiDuration = Date.now() - deepApiStart
+      const data = await response.json()
+
+      const apis = data.apis || {}
+      const testedApis = Object.entries(apis).filter(([, v]: [string, any]) => v.configured && v.connected !== undefined)
+      const connectedApis = testedApis.filter(([, v]: [string, any]) => v.connected)
+      const failedApis = testedApis.filter(([, v]: [string, any]) => !v.connected)
+
+      if (testedApis.length === 0) {
+        results[4] = {
+          name: 'Conexão Real APIs',
+          status: 'warning',
+          message: 'Nenhuma API configurada para testar',
+          duration: deepApiDuration
+        }
+      } else if (failedApis.length === 0) {
+        const apiNames = connectedApis.map(([k]) => k).join(', ')
+        results[4] = {
+          name: 'Conexão Real APIs',
+          status: 'success',
+          message: `${connectedApis.length}/${testedApis.length} APIs conectadas`,
+          details: `OK: ${apiNames}`,
+          duration: deepApiDuration
+        }
+      } else {
+        const failedNames = failedApis.map(([k, v]: [string, any]) => `${k}(${v.error || 'erro'})`).join(', ')
+        const okNames = connectedApis.map(([k]) => k).join(', ')
+        results[4] = {
+          name: 'Conexão Real APIs',
+          status: failedApis.length === testedApis.length ? 'error' : 'warning',
+          message: `${connectedApis.length}/${testedApis.length} APIs conectadas`,
+          details: `OK: ${okNames || 'nenhuma'} | Falha: ${failedNames}`,
+          duration: deepApiDuration
+        }
+      }
+    } catch (error: any) {
+      results[4] = {
+        name: 'Conexão Real APIs',
+        status: 'warning',
+        message: 'Não foi possível testar conexões reais',
+        details: error.message,
+        duration: Date.now() - deepApiStart
+      }
+    }
+    updateCheck(4, results[4])
+
     // Generate log
     const log = generateLog(results, start)
     setLogContent(log)
@@ -352,6 +405,8 @@ export function SystemCheck({ onComplete, onSkip }: SystemCheckProps) {
         return <Settings className="w-5 h-5" />
       case 'APIs Configuradas':
         return <Key className="w-5 h-5" />
+      case 'Conexão Real APIs':
+        return <Wifi className="w-5 h-5" />
       default:
         return <Wifi className="w-5 h-5" />
     }
