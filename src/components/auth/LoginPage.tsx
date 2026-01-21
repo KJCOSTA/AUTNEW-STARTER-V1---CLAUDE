@@ -1,7 +1,19 @@
 import { useState } from 'react'
 const ENABLE_ADMIN_BYPASS = true
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Zap, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import {
+  Sparkles,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader2,
+  Zap,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react'
+
 import { useAuth } from '../../contexts/AuthContext'
 import { Button, Input } from '../ui'
 
