@@ -35,7 +35,7 @@ interface SystemCheckResponse {
 
 // API URLs for real connection tests
 const API_URLS = {
-  gemini: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
   openai: 'https://api.openai.com/v1/models',
   pexels: 'https://api.pexels.com/v1/search?query=test&per_page=1',
   pixabay: 'https://pixabay.com/api/?q=test&per_page=3',
