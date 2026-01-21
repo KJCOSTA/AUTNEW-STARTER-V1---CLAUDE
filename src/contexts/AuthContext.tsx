@@ -2,13 +2,10 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import type { User, LoginCredentials } from '../types'
 
 /**
- * ===============================
- * AUTH CONTEXT — STABLE DEV MODE
- * ===============================
- * - Compila
+ * AUTH CONTEXT — STABLE DEV MODE (COMPATÍVEL)
+ * - Mantém TODOS os métodos esperados pelo app
  * - Não chama backend
- * - Não entra em loop
- * - Reversível depois
+ * - Compila 100%
  */
 
 const BYPASS_AUTH = true
@@ -35,35 +32,40 @@ interface AuthContextType {
   isAdmin: boolean
   login: (credentials: LoginCredentials) => Promise<AuthResult>
   logout: () => Promise<void>
+  changePassword: (senhaAtual: string, novaSenha: string) => Promise<AuthResult>
+  verifyProductionPassword: (senha: string) => Promise<AuthResult>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(BYPASS_AUTH ? BYPASS_USER : null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading] = useState(false)
 
   const isAuthenticated = !!user
   const isAdmin = user?.role === 'admin'
 
   const login = useCallback(async (_: LoginCredentials): Promise<AuthResult> => {
-    if (BYPASS_AUTH) {
-      setUser(BYPASS_USER)
-      return { success: true }
-    }
-    return { success: false, error: 'Auth disabled' }
+    setUser(BYPASS_USER)
+    return { success: true }
   }, [])
 
   const logout = useCallback(async () => {
-    if (BYPASS_AUTH) {
-      setUser(BYPASS_USER)
-    }
+    setUser(BYPASS_USER)
+  }, [])
+
+  const changePassword = useCallback(async (): Promise<AuthResult> => {
+    // Stub DEV — sempre sucesso
+    return { success: true }
+  }, [])
+
+  const verifyProductionPassword = useCallback(async (): Promise<AuthResult> => {
+    // Stub DEV — sempre sucesso
+    return { success: true }
   }, [])
 
   useEffect(() => {
-    if (BYPASS_AUTH) {
-      setUser(BYPASS_USER)
-    }
+    setUser(BYPASS_USER)
   }, [])
 
   return (
@@ -75,6 +77,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         login,
         logout,
+        changePassword,
+        verifyProductionPassword,
       }}
     >
       {children}
@@ -88,4 +92,11 @@ export function useAuth() {
     throw new Error('useAuth must be used within AuthProvider')
   }
   return ctx
+}
+
+/**
+ * Compatibilidade com código legado
+ */
+export function useAuthToken(): string | null {
+  return 'DEV_BYPASS_TOKEN'
 }
