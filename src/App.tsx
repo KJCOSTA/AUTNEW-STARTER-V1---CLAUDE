@@ -1,4 +1,4 @@
-import { useState, Component, ErrorInfo, ReactNode } from 'react'
+import { useState, Component, ErrorInfo, ReactNode, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Layout } from './components/layout/Layout'
@@ -12,32 +12,19 @@ import { SystemCheck } from './components/system/SystemCheck'
 import { useStore } from './store/useStore'
 import { Loader2, AlertTriangle } from 'lucide-react'
 
-// Error Boundary para capturar "Tela Preta"
+// Error Boundary para evitar tela branca da morte
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: string }> {
-  constructor(props: any) {
-    super(props)
-    this.state = { hasError: false, error: '' }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    return { hasError: true, error: error.toString() }
-  }
-
-  componentDidCatch(error: any, errorInfo: ErrorInfo) {
-    console.error("Uncaught error:", error, errorInfo)
-  }
-
+  constructor(props: any) { super(props); this.state = { hasError: false, error: '' } }
+  static getDerivedStateFromError(error: any) { return { hasError: true, error: error.toString() } }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-black text-red-500 flex flex-col items-center justify-center p-8">
-          <AlertTriangle className="w-16 h-16 mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Algo deu errado (Crash)</h1>
-          <pre className="bg-zinc-900 p-4 rounded text-xs max-w-2xl overflow-auto border border-red-900">
-            {this.state.error}
-          </pre>
-          <button onClick={() => window.location.reload()} className="mt-8 px-6 py-2 bg-white text-black font-bold rounded">
-            Recarregar Página
+        <div className="min-h-screen bg-black text-red-500 flex flex-col items-center justify-center p-8 text-center">
+          <AlertTriangle className="w-16 h-16 mb-4 mx-auto" />
+          <h1 className="text-2xl font-bold mb-2">Erro Crítico de Renderização</h1>
+          <p className="text-zinc-400 mb-4">O sistema encontrou um erro inesperado.</p>
+          <button onClick={() => { sessionStorage.clear(); window.location.reload() }} className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-zinc-200">
+            Limpar Cache e Recarregar
           </button>
         </div>
       )
@@ -48,71 +35,73 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 function AppContent() {
   const [activeModule, setActiveModule] = useState('plan-run')
-  const [systemCheckPassed, setSystemCheckPassed] = useState(false)
+  // FIX: Lê do sessionStorage se já passou pelo check para não travar no reload
+  const [systemCheckPassed, setSystemCheckPassed] = useState(() => {
+    return sessionStorage.getItem('autnew_sys_check') === 'true'
+  })
+  
   const { loading, loadingMessage } = useStore()
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth()
 
-  // 1. Diagnóstico Inicial
-  if (!systemCheckPassed) {
-    return <SystemCheck onComplete={() => setSystemCheckPassed(true)} />
+  // Salva estado quando passa
+  const handleCheckComplete = () => {
+    sessionStorage.setItem('autnew_sys_check', 'true')
+    setSystemCheckPassed(true)
   }
 
-  // 2. Loading Auth
+  // 1. Loading Inicial da Auth
   if (isLoading) {
-    return <div className="min-h-screen bg-[#050505] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-purple-500"/></div>
+    return <div className="min-h-screen bg-[#030712] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-purple-600"/></div>
   }
 
-  // 3. Login
-  if (!isAuthenticated) {
-    return <LoginPage />
+  // 2. Se já estiver logado, PULA o System Check (Prioridade Máxima)
+  if (isAuthenticated) {
+    // Renderiza o Sistema Principal
+    if (user?.primeiroAcesso) return <ChangePasswordPage />
+    
+    return (
+      <>
+        <Layout activeModule={activeModule as any} onModuleChange={(m: any) => setActiveModule(m)}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeModule}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeModule === 'plan-run' && <PlanRun />}
+              {activeModule === 'diretrizes' && <Diretrizes />}
+              {activeModule === 'monitor' && <Monitor />}
+              {activeModule === 'historico' && <Historico />}
+              {activeModule === 'configuracoes' && <Configuracoes />}
+              {activeModule === 'usuarios' && (isAdmin ? <GestaoUsuarios /> : <PlanRun />)}
+            </motion.div>
+          </AnimatePresence>
+        </Layout>
+        <ToastContainer />
+        <SpeedInsights />
+        <AnimatePresence>{loading && <Loading fullScreen message={loadingMessage} />}</AnimatePresence>
+      </>
+    )
   }
 
-  // 4. Change Pass
-  if (user?.primeiroAcesso) {
-    return <ChangePasswordPage />
+  // 3. Se não está logado E não passou no check, mostra check
+  if (!systemCheckPassed) {
+    return <SystemCheck onComplete={handleCheckComplete} />
   }
 
-  const renderModule = () => {
-    switch (activeModule) {
-      case 'plan-run': return <PlanRun />
-      case 'diretrizes': return <Diretrizes />
-      case 'monitor': return <Monitor />
-      case 'historico': return <Historico />
-      case 'configuracoes': return <Configuracoes />
-      case 'usuarios': return isAdmin ? <GestaoUsuarios /> : <PlanRun />
-      default: return <PlanRun />
-    }
-  }
-
-  return (
-    <ErrorBoundary>
-      <Layout activeModule={activeModule as any} onModuleChange={(m: any) => setActiveModule(m)}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeModule}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {renderModule()}
-          </motion.div>
-        </AnimatePresence>
-      </Layout>
-      <ToastContainer />
-      <SpeedInsights />
-      <AnimatePresence>
-        {loading && <Loading fullScreen message={loadingMessage} />}
-      </AnimatePresence>
-    </ErrorBoundary>
-  )
+  // 4. Se passou no check mas não tá logado, mostra Login
+  return <LoginPage />
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
