@@ -12,13 +12,35 @@ const DEFAULT_CONFIG: AppConfig = {
   apiKeys: { openai: '', gemini: '', elevenlabs: '', youtube: '' }
 }
 
-interface Store extends AppState {
+interface Store {
+  // Configurações
+  configuracoes: AppConfig
   setConfiguracoes: (config: Partial<AppConfig>) => void
+
+  // Loading state
+  loading: boolean
+  loadingMessage: string
   setLoading: (loading: boolean, message?: string) => void
-  // Novas ações SMART
+
+  // Temp keys (SMART mode)
+  tempKeys: Record<string, string>
   setTempKey: (service: string, key: string) => void
   getTempKey: (service: string) => string | undefined
-  tempKeys: Record<string, string>
+
+  // Canal data
+  canal: { nome: string; inscritos: number; conectado: boolean; metricas30dias: any }
+  canais: any[]
+  canalAtivo: string | null
+  addCanal: (canal: any) => void
+  removeCanal: (nome: string) => void
+  setActiveCanal: (nome: string) => void
+
+  // Toast notifications
+  toasts: any[]
+  addToast: (toast: any) => void
+  removeToast: (id: string) => void
+
+  // Reset
   reset: () => void
 }
 
@@ -30,20 +52,55 @@ export const useStore = create<Store>()(
       loadingMessage: '',
       tempKeys: {}, // Chaves de sessão (não salvas no disco por segurança padrão, mas persistidas no refresh pelo zustand)
 
+      // Canal data - prevent undefined errors
+      canal: { nome: '', inscritos: 0, conectado: false, metricas30dias: null },
+      canais: [],
+      canalAtivo: null,
+
+      // Toast notifications
+      toasts: [],
+
       setConfiguracoes: (newConfig) => set((state) => ({ configuracoes: { ...state.configuracoes, ...newConfig } })),
       setLoading: (loading, message) => set({ loading, loadingMessage: message || 'Carregando...' }),
-      
+
       setTempKey: (service, key) => set((state) => ({ tempKeys: { ...state.tempKeys, [service]: key } })),
       getTempKey: (service) => get().tempKeys[service],
-      
-      reset: () => set({ configuracoes: DEFAULT_CONFIG, tempKeys: {} })
+
+      // Canal management
+      addCanal: (canal) => set((state) => ({
+        canais: [...state.canais, canal],
+        canalAtivo: canal.nome
+      })),
+      removeCanal: (nome) => set((state) => ({
+        canais: state.canais.filter(c => c.nome !== nome),
+        canalAtivo: state.canalAtivo === nome ? state.canais[0]?.nome || null : state.canalAtivo
+      })),
+      setActiveCanal: (nome) => set({ canalAtivo: nome }),
+
+      // Toast notifications
+      addToast: (toast) => set((state) => ({
+        toasts: [...state.toasts, { ...toast, id: Date.now().toString() }]
+      })),
+      removeToast: (id) => set((state) => ({
+        toasts: state.toasts.filter(t => t.id !== id)
+      })),
+
+      reset: () => set({
+        configuracoes: DEFAULT_CONFIG,
+        tempKeys: {},
+        canais: [],
+        canalAtivo: null,
+        toasts: []
+      })
     }),
-    { 
+    {
       name: 'autnew-smart-storage',
-      partialize: (state) => ({ 
+      partialize: (state) => ({
           configuracoes: state.configuracoes,
-          tempKeys: state.tempKeys // Persiste chaves manuais entre reloads
-      }) 
+          tempKeys: state.tempKeys, // Persiste chaves manuais entre reloads
+          canais: state.canais,
+          canalAtivo: state.canalAtivo
+      })
     }
   )
 )
