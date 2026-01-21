@@ -1,5 +1,4 @@
 import { useState } from 'react'
-const ENABLE_ADMIN_BYPASS = true
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles,
@@ -11,9 +10,9 @@ import {
   Loader2,
   Zap,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ExternalLink
 } from 'lucide-react'
-
 import { useAuth } from '../../contexts/AuthContext'
 import { Button, Input } from '../ui'
 
@@ -23,8 +22,15 @@ interface ErrorInfo {
   details?: string
 }
 
+/**
+ * FLAG DE BYPASS ADMIN
+ * Coloque false para remover o acesso direto
+ */
+const ENABLE_ADMIN_BYPASS = true
+
 export function LoginPage() {
   const { login } = useAuth()
+
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -51,24 +57,26 @@ export function LoginPage() {
     setIsLoading(false)
   }
 
-  // Entrar diretamente como admin (modo desenvolvimento)
-  const handleDevLogin = async () => {
+  const handleAdminBypass = async () => {
     setErrorInfo(null)
     setShowErrorDetails(false)
     setIsLoading(true)
-    const result = await login({ email: 'admin@autnew.com', senha: 'Admin123!' })
+
+    const result = await login({
+      email: 'admin@autnew.com',
+      senha: 'Admin123!'
+    })
+
     if (!result.success) {
       setErrorInfo({
-        message: result.error || 'Erro ao fazer login',
+        message: result.error || 'Erro ao entrar como admin',
         code: result.errorCode,
         details: result.errorDetails
       })
     }
+
     setIsLoading(false)
   }
-
-  // Verificar se estamos em modo de desenvolvimento
-
 
   const openDiagnostics = () => {
     window.open('/api/db-health', '_blank')
@@ -87,7 +95,7 @@ export function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         className="relative w-full max-w-md"
       >
-        {/* Logo & Title */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
@@ -97,38 +105,44 @@ export function LoginPage() {
           >
             <Sparkles className="w-10 h-10 text-white" />
           </motion.div>
+
           <h1 className="text-3xl font-bold text-text-primary mb-2">AUTNEW</h1>
           <p className="text-text-secondary">Sistema de Automação de Vídeos</p>
         </div>
 
-        {/* Login Card */}
+        {/* Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="bg-card border border-white/10 rounded-2xl p-8 shadow-xl"
         >
-          <h2 className="text-xl font-semibold text-text-primary mb-6">Entrar no Sistema</h2>
+          <h2 className="text-xl font-semibold text-text-primary mb-6">
+            Entrar no Sistema
+          </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error Message */}
+            {/* Error */}
             {errorInfo && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="p-4 bg-status-error/10 border border-status-error/30 rounded-xl"
               >
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-status-error flex-shrink-0 mt-0.5" />
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-status-error mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-status-error">{errorInfo.message}</p>
+                    <p className="text-sm text-status-error">
+                      {errorInfo.message}
+                    </p>
 
-                    {/* Show details toggle */}
                     {(errorInfo.code || errorInfo.details) && (
                       <button
                         type="button"
-                        onClick={() => setShowErrorDetails(!showErrorDetails)}
-                        className="mt-2 text-xs text-status-error/70 hover:text-status-error flex items-center gap-1 transition-colors"
+                        onClick={() =>
+                          setShowErrorDetails(!showErrorDetails)
+                        }
+                        className="mt-2 text-xs text-status-error/70 flex items-center gap-1"
                       >
                         {showErrorDetails ? (
                           <>
@@ -138,7 +152,7 @@ export function LoginPage() {
                         ) : (
                           <>
                             <ChevronDown className="w-3 h-3" />
-                            Ver detalhes do erro
+                            Ver detalhes
                           </>
                         )}
                       </button>
@@ -146,7 +160,6 @@ export function LoginPage() {
                   </div>
                 </div>
 
-                {/* Expanded error details */}
                 <AnimatePresence>
                   {showErrorDetails && (
                     <motion.div
@@ -155,30 +168,25 @@ export function LoginPage() {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-3 pt-3 border-t border-status-error/20 space-y-2">
+                      <div className="mt-3 pt-3 border-t border-status-error/20 space-y-2 text-xs">
                         {errorInfo.code && (
-                          <div className="text-xs">
-                            <span className="text-text-secondary">Codigo:</span>{' '}
-                            <code className="text-status-error bg-status-error/10 px-1.5 py-0.5 rounded">
-                              {errorInfo.code}
-                            </code>
+                          <div>
+                            <strong>Código:</strong> {errorInfo.code}
                           </div>
                         )}
                         {errorInfo.details && (
-                          <div className="text-xs">
-                            <span className="text-text-secondary">Detalhes:</span>{' '}
-                            <span className="text-status-error/80">{errorInfo.details}</span>
+                          <div>
+                            <strong>Detalhes:</strong> {errorInfo.details}
                           </div>
                         )}
 
-                        {/* Diagnostics link */}
                         <button
                           type="button"
                           onClick={openDiagnostics}
-                          className="mt-2 text-xs text-accent-blue hover:text-accent-blue/80 flex items-center gap-1 transition-colors"
+                          className="flex items-center gap-1 text-accent-blue"
                         >
                           <ExternalLink className="w-3 h-3" />
-                          Abrir diagnostico do banco de dados
+                          Abrir diagnóstico do banco
                         </button>
                       </div>
                     </motion.div>
@@ -187,32 +195,29 @@ export function LoginPage() {
               </motion.div>
             )}
 
-            {/* Email Field */}
+            {/* Email */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-                <Mail className="w-4 h-4 text-text-secondary" />
+              <label className="text-sm flex items-center gap-2">
+                <Mail className="w-4 h-4" />
                 Email
               </label>
               <Input
                 type="email"
-                placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                autoFocus
               />
             </div>
 
-            {/* Password Field */}
+            {/* Senha */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-                <Lock className="w-4 h-4 text-text-secondary" />
+              <label className="text-sm flex items-center gap-2">
+                <Lock className="w-4 h-4" />
                 Senha
               </label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Digite sua senha"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                   required
@@ -220,19 +225,23 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit */}
             <Button
               type="submit"
               className="w-full"
               size="lg"
-              disabled={isLoading || !email || !senha}
+              disabled={isLoading}
             >
               {isLoading ? (
                 <>
@@ -245,8 +254,7 @@ export function LoginPage() {
             </Button>
           </form>
 
-  
-                 {/* Dev Login Button - Bypass */}
+          {/* Admin Bypass */}
           {ENABLE_ADMIN_BYPASS && (
             <div className="mt-6 pt-6 border-t border-white/10">
               <Button
@@ -254,31 +262,15 @@ export function LoginPage() {
                 variant="secondary"
                 className="w-full"
                 size="lg"
-                onClick={handleDevLogin}
+                onClick={handleAdminBypass}
                 disabled={isLoading}
               >
                 <Zap className="w-5 h-5 mr-2 text-yellow-400" />
                 Entrar direto como Admin
               </Button>
-
-              <p className="text-xs text-text-secondary text-center mt-3">
-                Acesso administrativo temporário (bypass)
-              </p>
             </div>
           )}
-        </motion.div>  {/* ← ESTE FECHAMENTO ESTAVA FALTANDO */}
-        
-        {/* Footer */}
-        <p className="text-center text-xs text-text-secondary mt-6">
-          AUTNEW Starter V1 - Mundo da Prece
-        </p>
-      </motion.div>
-
-    <p className="text-xs text-text-secondary text-center mt-3">
-      Acesso administrativo temporário (bypass)
-    </p>
-  </div>
-)}
+        </motion.div>
 
         {/* Footer */}
         <p className="text-center text-xs text-text-secondary mt-6">
