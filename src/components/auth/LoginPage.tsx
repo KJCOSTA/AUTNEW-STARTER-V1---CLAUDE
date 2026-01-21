@@ -246,19 +246,33 @@ export function LoginPage() {
           </form>
 
   
-         {ENABLE_ADMIN_BYPASS && (
-  <div className="mt-6 pt-6 border-t border-white/10">
-    <Button
-      type="button"
-      variant="secondary"
-      className="w-full"
-      size="lg"
-      onClick={handleDevLogin}
-      disabled={isLoading}
-    >
-      <Zap className="w-5 h-5 mr-2 text-yellow-400" />
-      Entrar direto como Admin
-    </Button>
+                 {/* Dev Login Button - Bypass */}
+          {ENABLE_ADMIN_BYPASS && (
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                size="lg"
+                onClick={handleDevLogin}
+                disabled={isLoading}
+              >
+                <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                Entrar direto como Admin
+              </Button>
+
+              <p className="text-xs text-text-secondary text-center mt-3">
+                Acesso administrativo temporário (bypass)
+              </p>
+            </div>
+          )}
+        </motion.div>  {/* ← ESTE FECHAMENTO ESTAVA FALTANDO */}
+        
+        {/* Footer */}
+        <p className="text-center text-xs text-text-secondary mt-6">
+          AUTNEW Starter V1 - Mundo da Prece
+        </p>
+      </motion.div>
 
     <p className="text-xs text-text-secondary text-center mt-3">
       Acesso administrativo temporário (bypass)
