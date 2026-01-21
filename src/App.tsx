@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Layout } from './components/layout/Layout'
@@ -20,48 +20,24 @@ import { useStore } from './store/useStore'
 import type { ModuleName } from './types'
 import { Loader2 } from 'lucide-react'
 
-// Key for localStorage to remember if system check passed
-const SYSTEM_CHECK_KEY = 'autnew_system_check_passed'
-const SYSTEM_CHECK_EXPIRY = 1000 * 60 * 60 // 1 hour
-
 function AppContent() {
   const [activeModule, setActiveModule] = useState<ModuleName>('plan-run')
-  const [systemCheckPassed, setSystemCheckPassed] = useState<boolean | null>(null)
+  // FORCE CHECK: Inicializa como false para obrigar a verificação
+  const [systemCheckPassed, setSystemCheckPassed] = useState(false)
+  
   const { loading, loadingMessage } = useStore()
   const { user, isAuthenticated, isLoading, isAdmin } = useAuth()
 
-  // Check if system check was recently passed
-  useEffect(() => {
-    const stored = localStorage.getItem(SYSTEM_CHECK_KEY)
-    if (stored) {
-      const { timestamp } = JSON.parse(stored)
-      const isValid = Date.now() - timestamp < SYSTEM_CHECK_EXPIRY
-      setSystemCheckPassed(isValid)
-    } else {
-      setSystemCheckPassed(false)
-    }
-  }, [])
-
   const handleSystemCheckComplete = () => {
-    localStorage.setItem(SYSTEM_CHECK_KEY, JSON.stringify({ timestamp: Date.now() }))
     setSystemCheckPassed(true)
   }
 
-  // Show loading while checking system check status
-  if (systemCheckPassed === null) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-accent-purple" />
-      </div>
-    )
-  }
-
-  // Show system check if not passed
+  // 1. System Check (Obrigatório antes de qualquer coisa)
   if (!systemCheckPassed) {
     return <SystemCheck onComplete={handleSystemCheckComplete} />
   }
 
-  // Show loading while checking auth
+  // 2. Loading Auth
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -70,33 +46,25 @@ function AppContent() {
     )
   }
 
-  // Show login if not authenticated
+  // 3. Login
   if (!isAuthenticated) {
     return <LoginPage />
   }
 
-  // Show change password if first access
+  // 4. Primeiro Acesso
   if (user?.primeiroAcesso) {
     return <ChangePasswordPage />
   }
 
   const renderModule = () => {
     switch (activeModule) {
-      case 'plan-run':
-        return <PlanRun />
-      case 'diretrizes':
-        return <Diretrizes />
-      case 'monitor':
-        return <Monitor />
-      case 'historico':
-        return <Historico />
-      case 'configuracoes':
-        return <Configuracoes />
-      case 'usuarios':
-        // Only admin can access user management
-        return isAdmin ? <GestaoUsuarios /> : <PlanRun />
-      default:
-        return <PlanRun />
+      case 'plan-run': return <PlanRun />
+      case 'diretrizes': return <Diretrizes />
+      case 'monitor': return <Monitor />
+      case 'historico': return <Historico />
+      case 'configuracoes': return <Configuracoes />
+      case 'usuarios': return isAdmin ? <GestaoUsuarios /> : <PlanRun />
+      default: return <PlanRun />
     }
   }
 
@@ -115,14 +83,8 @@ function AppContent() {
           </motion.div>
         </AnimatePresence>
       </Layout>
-
-      {/* Toast Notifications */}
       <ToastContainer />
-
-      {/* Speed Insights */}
       <SpeedInsights />
-
-      {/* Global Loading Overlay */}
       <AnimatePresence>
         {loading && <Loading fullScreen message={loadingMessage} />}
       </AnimatePresence>
