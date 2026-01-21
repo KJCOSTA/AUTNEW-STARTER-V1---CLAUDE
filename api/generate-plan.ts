@@ -1,33 +1,102 @@
-export default async function handler(req, res) {
-  const { topic } = req.body || {};
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-  // 1. TENTA OPENAI REAL
-  if (process.env.OPENAI_API_KEY) {
-    try {
-      // Simulação da chamada real (aqui iria seu código OpenAI)
-      // Se tiver a chave, deixamos passar (assumindo que existe logica real em outro lugar)
-      // Mas para este fix, vamos garantir o retorno:
-    } catch (e) {
-      console.warn('OpenAI falhou, usando fallback');
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { topic } = req.body || {};
+
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'Topic is required in request body'
+      });
     }
+
+    // Validate authentication
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      console.warn('[GENERATE PLAN] No authentication token provided');
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Authentication token required'
+      });
+    }
+
+    // 1. ATTEMPT REAL OPENAI API CONNECTION
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        // TODO: Implement actual OpenAI API call here
+        // Example:
+        // const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        //     'Content-Type': 'application/json'
+        //   },
+        //   body: JSON.stringify({
+        //     model: 'gpt-4',
+        //     messages: [{ role: 'user', content: `Generate a strategic plan for: ${topic}` }]
+        //   })
+        // });
+
+        console.warn('[GENERATE PLAN] OpenAI integration not implemented yet, using fallback');
+        // Fall through to fallback
+      } catch (e) {
+        console.error('[GENERATE PLAN] OpenAI API failed:', (e as Error).message);
+        // Fall through to fallback
+      }
+    } else {
+      console.warn('[GENERATE PLAN] Missing OPENAI_API_KEY - using fallback');
+    }
+
+    // 2. FALLBACK RESPONSE (when OpenAI unavailable)
+    console.log('⚠️ [GENERATE PLAN] Serving fallback plan for:', topic);
+
+    return res.status(200).json({
+      success: true,
+      plan: {
+        title: `Plano Estratégico para: ${topic}`,
+        overview: "Este é um plano gerado pelo sistema de fallback. Configure OPENAI_API_KEY para planos personalizados por IA.",
+        steps: [
+          {
+            day: 1,
+            action: "Análise de Concorrência",
+            details: `Pesquisar e identificar os top 5 competidores no nicho de ${topic}.`
+          },
+          {
+            day: 2,
+            action: "Criação de Conteúdo",
+            details: `Gravar 3 vídeos curtos sobre ${topic} focando em valor único.`
+          },
+          {
+            day: 3,
+            action: "Distribuição e Engajamento",
+            details: "Publicar no YouTube Shorts, TikTok e Instagram Reels com hashtags estratégicas."
+          },
+          {
+            day: 4,
+            action: "Análise e Otimização",
+            details: "Revisar métricas de engajamento e ajustar estratégia baseada em performance."
+          }
+        ],
+        metrics: {
+          estimatedViews: 5000,
+          difficulty: "Médio",
+          timeCommitment: "1-2 horas/dia"
+        }
+      },
+      _source: 'fallback',
+      _warning: 'Using template plan - configure OPENAI_API_KEY for AI-generated plans'
+    });
+
+  } catch (error) {
+    console.error('[GENERATE PLAN] Unexpected error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal Server Error',
+      message: 'Failed to generate plan',
+      _source: 'error_fallback'
+    });
   }
-
-  // 2. RETORNO GARANTIDO (Para o teste do Run Plan não falhar)
-  setTimeout(() => {
-    // Delay fake para parecer IA pensando
-  }, 1000);
-
-  return res.status(200).json({
-    success: true,
-    plan: {
-      title: `Plano Estratégico para: ${topic || 'Geral'}`,
-      overview: "Este é um plano gerado pelo Modo de Segurança do sistema.",
-      steps: [
-        { day: 1, action: "Análise de Concorrência", details: "Identificar top 5 competidores." },
-        { day: 2, action: "Criação de Conteúdo", details: "Gravar 3 vídeos curtos sobre o tema." },
-        { day: 3, action: "Distribuição", details: "Postar no YouTube Shorts e TikTok." }
-      ],
-      metrics: { estimatedViews: 5000, difficulty: "Médio" }
-    }
-  });
 }
