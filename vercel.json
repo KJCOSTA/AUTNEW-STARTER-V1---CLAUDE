@@ -1,17 +1,40 @@
 {
+  "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!api).*)",
       "destination": "/index.html"
     }
   ],
   "functions": {
-    "api/**/*.ts": {
-      "maxDuration": 60
+    "api/ai.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/tts.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/json2video.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/youtube.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/auth.ts": {
+      "maxDuration": 30
+    },
+    "api/media.ts": {
+      "maxDuration": 60,
+      "memory": 1024
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }

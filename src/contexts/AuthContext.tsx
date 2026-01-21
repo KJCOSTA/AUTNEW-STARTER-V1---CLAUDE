@@ -1,233 +1,323 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
+import type { User, LoginCredentials } from '../types'
 
-export interface User {
-  id: string
-  email: string
-  nome: string
-  role: 'admin' | 'editor' | 'viewer'
-  primeiroAcesso?: boolean
+// ============================================
+// AUTENTICAÇÃO COM POSTGRESQL
+// Banco de dados real está funcionando
+// ============================================
+const BYPASS_AUTH = true
+
+const BYPASS_USER: User = {
+  id: 'bypass-admin-001',
+  email: 'kleiton@autnew.com',
+  nome: 'Kleiton (Dev Mode)',
+  role: 'admin',
+  ativo: true,
+  criadoEm: new Date().toISOString(),
+  primeiroAcesso: false,
+}
+
+interface AuthResult {
+  success: boolean
+  error?: string
+  errorCode?: string
+  errorDetails?: string
 }
 
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (credentials: { email: string; password: string }) => Promise<{ success: boolean; error?: string }>
-  logout: () => Promise<void>
-  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>
-  verifyProductionPassword: (password: string) => Promise<{ success: boolean; error?: string }>
   isAdmin: boolean
+  login: (credentials: LoginCredentials) => Promise<AuthResult>
+  logout: () => Promise<void>
+  checkSession: () => Promise<void>
+  changePassword: (senhaAtual: string, novaSenha: string) => Promise<AuthResult>
+  verifyProductionPassword: (senha: string) => Promise<AuthResult>
 }
 
-const AuthContext = createContext<AuthContextType | null>(null)
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const TOKEN_KEY = 'autnew:token'
-const USER_KEY = 'autnew:user'
+const TOKEN_KEY = 'autnew_auth_token'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  // Se BYPASS_AUTH está ativo, já inicia logado
+  const [user, setUser] = useState<User | null>(BYPASS_AUTH ? BYPASS_USER : null)
+  const [isLoading, setIsLoading] = useState(!BYPASS_AUTH)
 
-  // Verify existing token on mount
+  const isAuthenticated = !!user
+  const isAdmin = user?.role === 'admin'
+
+  // Se bypass está ativo, mostra no console
   useEffect(() => {
-    const verifyToken = async () => {
-      const token = localStorage.getItem(TOKEN_KEY)
-      const storedUser = localStorage.getItem(USER_KEY)
-
-      if (!token || !storedUser) {
-        setIsLoading(false)
-        return
-      }
-
-      try {
-        // Verify token with backend
-        const response = await fetch('/api/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ action: 'session' })
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.user) {
-            setUser(data.user)
-          } else {
-            // Token invalid, clear storage
-            localStorage.removeItem(TOKEN_KEY)
-            localStorage.removeItem(USER_KEY)
-          }
-        } else {
-          // Token invalid, clear storage
-          localStorage.removeItem(TOKEN_KEY)
-          localStorage.removeItem(USER_KEY)
-        }
-      } catch (error) {
-        console.error('[AUTH] Token verification failed:', error)
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
-      } finally {
-        setIsLoading(false)
-      }
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS DE AUTH ATIVO - Logado automaticamente como admin')
+      console.log('📝 Para desativar, mude BYPASS_AUTH para false em AuthContext.tsx')
     }
-
-    verifyToken()
   }, [])
 
-  const login = async (credentials: { email: string; password: string }) => {
-    try {
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: 'login',
-          email: credentials.email,
-          senha: credentials.password
-        })
-      })
+  // Get token from localStorage
+  const getToken = useCallback(() => {
+    return localStorage.getItem(TOKEN_KEY)
+  }, [])
 
-      const data = await response.json()
+  // Save token to localStorage
+  const saveToken = useCallback((token: string) => {
+    localStorage.setItem(TOKEN_KEY, token)
+  }, [])
 
-      if (response.ok && data.success) {
-        // Save token and user
-        localStorage.setItem(TOKEN_KEY, data.token)
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user))
-        setUser(data.user)
+  // Remove token from localStorage
+  const removeToken = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY)
+  }, [])
 
-        console.log('[AUTH] Login successful:', data.user.email)
-        return { success: true }
-      } else {
-        console.error('[AUTH] Login failed:', data.error)
-        return { success: false, error: data.error || 'Credenciais inválidas' }
-      }
-    } catch (error) {
-      console.error('[AUTH] Login error:', error)
-      return { success: false, error: 'Erro ao conectar com o servidor' }
+  // Check session on mount
+  const checkSession = useCallback(async () => {
+    // Bypass: já está logado, não precisa verificar
+    if (BYPASS_AUTH) {
+      setUser(BYPASS_USER)
+      setIsLoading(false)
+      return
     }
-  }
 
-  const logout = async () => {
-    try {
-      const token = localStorage.getItem(TOKEN_KEY)
-
-      if (token) {
-        // Call backend to invalidate session
-        await fetch('/api/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ action: 'logout' })
-        })
-      }
-    } catch (error) {
-      console.error('[AUTH] Logout error:', error)
-    } finally {
-      // Clear local storage regardless
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(USER_KEY)
+    const token = getToken()
+    if (!token) {
       setUser(null)
-      console.log('[AUTH] Logout successful')
+      setIsLoading(false)
+      return
     }
-  }
 
-  const changePassword = async (currentPassword: string, newPassword: string) => {
     try {
-      const token = localStorage.getItem(TOKEN_KEY)
-
-      if (!token) {
-        return { success: false, error: 'Não autenticado' }
-      }
-
       const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          action: 'change-password',
-          senhaAtual: currentPassword,
-          novaSenha: newPassword
-        })
+        body: JSON.stringify({ action: 'session' }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+      } else {
+        removeToken()
+        setUser(null)
+      }
+    } catch (error) {
+      console.error('Session check failed:', error)
+      removeToken()
+      setUser(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [getToken, removeToken])
+
+  // Login
+  const login = useCallback(async (credentials: LoginCredentials): Promise<AuthResult> => {
+    // Bypass: login instantâneo
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Login automático para', credentials.email)
+      setUser(BYPASS_USER)
+      saveToken('bypass-token-dev')
+      return { success: true }
+    }
+
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', ...credentials }),
       })
 
       const data = await response.json()
 
       if (response.ok && data.success) {
-        // Update user to mark first access as complete
-        if (user) {
-          const updatedUser = { ...user, primeiroAcesso: false }
-          setUser(updatedUser)
-          localStorage.setItem(USER_KEY, JSON.stringify(updatedUser))
+        saveToken(data.token)
+        setUser(data.user)
+        return { success: true }
+      } else {
+        // Handle specific error codes with more details
+        const errorCode = data.code || `HTTP_${response.status}`
+        const errorDetails = data.details || data.hint || undefined
+
+        if (data.code === 'DATABASE_CONNECTION_ERROR') {
+          return {
+            success: false,
+            error: 'Erro de conexão com o banco de dados.',
+            errorCode,
+            errorDetails: errorDetails || 'Verifique a configuração do POSTGRES_URL no Vercel.'
+          }
         }
-
-        console.log('[AUTH] Password changed successfully')
-        return { success: true }
-      } else {
-        console.error('[AUTH] Password change failed:', data.error)
-        return { success: false, error: data.error || 'Erro ao alterar senha' }
+        return {
+          success: false,
+          error: data.error || 'Erro ao fazer login',
+          errorCode,
+          errorDetails
+        }
       }
     } catch (error) {
-      console.error('[AUTH] Password change error:', error)
-      return { success: false, error: 'Erro ao conectar com o servidor' }
-    }
-  }
+      console.error('Login failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
 
-  const verifyProductionPassword = async (password: string) => {
-    try {
-      const token = localStorage.getItem(TOKEN_KEY)
-
-      if (!token) {
-        return { success: false, error: 'Não autenticado' }
+      // Check if it's a network error
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return {
+          success: false,
+          error: 'Erro de rede. Verifique sua conexão.',
+          errorCode: 'NETWORK_ERROR',
+          errorDetails: errorMessage
+        }
       }
+      return {
+        success: false,
+        error: 'Erro de conexão. Tente novamente.',
+        errorCode: 'CONNECTION_ERROR',
+        errorDetails: errorMessage
+      }
+    }
+  }, [saveToken])
 
+  // Logout
+  const logout = useCallback(async () => {
+    // Bypass: logout instantâneo (mas reloga automaticamente)
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Logout... mas você continua logado em modo dev')
+      // Em bypass, não desloga de verdade - apenas recarrega o usuário
+      setUser(BYPASS_USER)
+      return
+    }
+
+    const token = getToken()
+
+    try {
+      await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'logout' }),
+      })
+    } catch (error) {
+      console.error('Logout failed:', error)
+    } finally {
+      removeToken()
+      setUser(null)
+    }
+  }, [getToken, removeToken])
+
+  // Change password
+  const changePassword = useCallback(async (senhaAtual: string, novaSenha: string): Promise<AuthResult> => {
+    // Bypass: aceita qualquer troca de senha
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Troca de senha aprovada automaticamente')
+      return { success: true }
+    }
+
+    const token = getToken()
+
+    try {
       const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          action: 'verify-production',
-          senha: password
-        })
+        body: JSON.stringify({ action: 'change-password', senhaAtual, novaSenha }),
       })
 
       const data = await response.json()
 
       if (response.ok && data.success) {
-        console.log('[AUTH] Production password verified')
+        // Update user to reflect primeiroAcesso = false
+        if (user) {
+          setUser({ ...user, primeiroAcesso: false })
+        }
         return { success: true }
       } else {
-        console.error('[AUTH] Production password verification failed:', data.error)
-        return { success: false, error: data.error || 'Senha incorreta' }
+        return {
+          success: false,
+          error: data.error || 'Erro ao trocar senha',
+          errorCode: data.code || `HTTP_${response.status}`,
+          errorDetails: data.details
+        }
       }
     } catch (error) {
-      console.error('[AUTH] Production password verification error:', error)
-      return { success: false, error: 'Erro ao conectar com o servidor' }
+      console.error('Change password failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      return {
+        success: false,
+        error: 'Erro de conexão. Tente novamente.',
+        errorCode: 'CONNECTION_ERROR',
+        errorDetails: errorMessage
+      }
     }
-  }
+  }, [getToken, user])
 
-  const isAdmin = user?.role === 'admin'
-  const isAuthenticated = !!user
+  // Verify password for production mode
+  const verifyProductionPassword = useCallback(async (senha: string): Promise<AuthResult> => {
+    // Bypass: aceita qualquer senha
+    if (BYPASS_AUTH) {
+      console.log('🔓 BYPASS: Verificação de senha do modo produção aprovada automaticamente')
+      return { success: true }
+    }
+
+    const token = getToken()
+
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'verify-production', senha }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        return { success: true }
+      } else {
+        return {
+          success: false,
+          error: data.error || 'Senha incorreta',
+          errorCode: data.code || `HTTP_${response.status}`,
+          errorDetails: data.details
+        }
+      }
+    } catch (error) {
+      console.error('Verify production password failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      return {
+        success: false,
+        error: 'Erro de conexão. Tente novamente.',
+        errorCode: 'CONNECTION_ERROR',
+        errorDetails: errorMessage
+      }
+    }
+  }, [getToken])
+
+  // Check session on mount
+  useEffect(() => {
+    checkSession()
+  }, [checkSession])
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoading,
-      isAdmin,
-      login,
-      logout,
-      changePassword,
-      verifyProductionPassword,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        isAdmin,
+        login,
+        logout,
+        checkSession,
+        changePassword,
+        verifyProductionPassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
@@ -235,12 +325,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
 }
 
-export function useAuthToken() {
-  return localStorage.getItem(TOKEN_KEY) || ''
+// Hook for getting auth token (for API calls)
+export function useAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
 }

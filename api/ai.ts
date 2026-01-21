@@ -1,4 +1,3 @@
-import { validateEnv } from "./_validateEnv"; validateEnv(["GEMINI_API_KEY"]);
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 // API URLs
