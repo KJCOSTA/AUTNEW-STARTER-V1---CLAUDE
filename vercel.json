@@ -1,8 +1,17 @@
 {
   "rewrites": [
-    { "source": "/api/youtube/stats", "destination": "/api/youtube-stats.ts" },
-    { "source": "/api/generate", "destination": "/api/generate-plan.ts" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
 }

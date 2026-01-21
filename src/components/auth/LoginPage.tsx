@@ -1,146 +1,108 @@
-import { useState, FormEvent } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { LogIn, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { Loader2, Mail, Lock, AlertTriangle, LogIn } from 'lucide-react'
 
 export function LoginPage() {
   const { login } = useAuth()
+  const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [senha, setSenha] = useState('')
   const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if(!email || !senha) return setError('Preencha todos os campos')
+
+    setLoading(true)
     setError('')
 
-    if (!email || !password) {
-      setError('Por favor, preencha todos os campos')
-      return
-    }
-
-    setIsLoading(true)
-
     try {
-      const result = await login({ email, password })
+      console.log('[LOGIN] Attempting login for:', email)
+      const res = await login({ email, password: senha })
+      console.log('[LOGIN] Login result:', { success: res.success, error: res.error })
 
-      if (!result.success) {
-        setError(result.error || 'Credenciais inválidas')
+      if (!res.success) {
+        console.error('[LOGIN] Login failed:', res.error)
+        setError(res.error || 'Falha ao entrar')
+        setLoading(false)
+      } else {
+        console.log('[LOGIN] Login successful, redirecting...')
+        // Sucesso! O redirecionamento acontece via AuthContext/App
+        // Não forçar reload - deixar o React controlar o estado
+        // O App.tsx vai detectar isAuthenticated e renderizar o dashboard
       }
-    } catch (err) {
-      console.error('[LOGIN] Unexpected error:', err)
-      setError('Erro ao tentar fazer login')
-    } finally {
-      setIsLoading(false)
+    } catch (e) {
+      console.error('[LOGIN] Login error:', e)
+      setError('Erro de conexão')
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+    <div className="min-h-screen flex items-center justify-center bg-[#030712] p-4 font-sans text-white relative overflow-hidden">
+      {/* Efeito de fundo sutil */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,50,255,0.1),transparent)] pointer-events-none" />
+
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        className="w-full max-w-sm bg-[#0f172a] border border-[#1e293b] p-8 rounded-2xl shadow-2xl z-10"
       >
-        {/* Logo */}
         <div className="text-center mb-8">
-          <motion.h1
-            className="text-4xl font-bold bg-gradient-to-r from-accent-purple to-accent-pink bg-clip-text text-transparent"
-            initial={{ scale: 0.9 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            AUTNEW
-          </motion.h1>
-          <p className="text-text-secondary mt-2">Sistema de Gestão de Conteúdo</p>
+          <div className="inline-flex p-3 rounded-xl bg-purple-500/10 mb-4 border border-purple-500/20">
+            <LogIn className="w-6 h-6 text-purple-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">Bem-vindo</h1>
+          <p className="text-[#64748b] text-sm mt-1">Insira suas credenciais de acesso</p>
         </div>
 
-        {/* Login Card */}
-        <div className="card p-8">
-          <h2 className="text-2xl font-semibold mb-6 text-center">Entrar no Sistema</h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-2">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                className="w-full px-4 py-3 bg-surface-dark border border-surface-light rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-purple transition-all"
-                disabled={isLoading}
-                autoComplete="email"
-                autoFocus
+        <form onSubmit={handleEmailLogin} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-[#64748b] ml-1">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 w-4 h-4 text-[#64748b]"/>
+              <input 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                className="w-full bg-[#1e293b] border border-transparent focus:border-purple-500 rounded-xl py-3 pl-10 text-sm focus:ring-0 outline-none transition-all placeholder:text-[#334155]" 
+                placeholder="admin@autnew.com" 
               />
             </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-2">
-                Senha
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 bg-surface-dark border border-surface-light rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-purple transition-all"
-                disabled={isLoading}
-                autoComplete="current-password"
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-[#64748b] ml-1">Senha</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 w-4 h-4 text-[#64748b]"/>
+              <input 
+                type="password" 
+                value={senha} 
+                onChange={e => setSenha(e.target.value)} 
+                className="w-full bg-[#1e293b] border border-transparent focus:border-purple-500 rounded-xl py-3 pl-10 text-sm focus:ring-0 outline-none transition-all placeholder:text-[#334155]" 
+                placeholder="••••••••" 
               />
             </div>
+          </div>
 
-            {/* Error Message */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
-              >
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-500">{error}</p>
-              </motion.div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Entrando...
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  Entrar
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Default Credentials Hint (dev only) */}
-          {import.meta.env.DEV && (
-            <div className="mt-6 p-3 bg-accent-purple/10 border border-accent-purple/20 rounded-lg">
-              <p className="text-xs text-text-secondary text-center">
-                <strong>Desenvolvimento:</strong> admin@autnew.com / admin123
-              </p>
-            </div>
+          {error && (
+            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="text-red-400 text-xs bg-red-500/10 p-3 rounded-lg flex items-center gap-2 border border-red-500/20">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {error}
+            </motion.div>
           )}
-        </div>
 
-        {/* Footer */}
-        <p className="text-center text-sm text-text-secondary mt-6">
-          © 2026 AUTNEW. Todos os direitos reservados.
-        </p>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center shadow-lg shadow-purple-900/20 mt-2"
+          >
+            {loading ? <Loader2 className="animate-spin w-5 h-5"/> : 'Entrar no Sistema'}
+          </button>
+        </form>
+        
+        <div className="mt-6 text-center text-[10px] text-[#475569]">
+          Protegido por Neon DB & Vercel Security
+        </div>
       </motion.div>
     </div>
   )

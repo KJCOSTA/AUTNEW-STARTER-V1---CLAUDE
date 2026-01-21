@@ -1,0 +1,181 @@
+[33mf236e30[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Merge pull request #76 from KJCOSTA/claude/review-changes-mknsuj7ip2dfc0rd-ranXe
+[33m459f3da[m feat(database): add database initialization endpoint with admin setup
+[33m08d8617[m fix(critical): implement real authentication system and login screen
+[33m987c918[m fix(apis): add YouTube API real testing and comprehensive setup guide
+[33mf019a5c[m Merge pull request #75 from KJCOSTA/claude/review-changes-mknsuj7ip2dfc0rd-ranXe
+[33ma250525[m fix(security): comprehensive security and stability improvements
+[33ma032e6e[m Merge pull request #74 from KJCOSTA/versao-final
+[33m684fc33[m[33m ([m[1;31morigin/versao-final[m[33m)[m fix(critical): restore all db methods to fix runtime crashes
+[33m512a1d7[m fix(urgent): safe mode for apis to prevent black screen
+[33mcc755c4[m Merge pull request #73 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m227b5dd[m fix: switch bypass to use REAL database data
+[33md17c8eb[m chore: add db connection test route
+[33mdfdea1b[m fix(urgent): production bypass enable and db mock
+[33m1283b15[m fix: prevent monitor black screen with safe api timeouts
+[33m563eb89[m fix: canonical patch (auth + monitor + api safety)
+[33m2fe9d3e[m[33m ([m[1;31morigin/claude/autnew-starter-v1-oyQ1x[m[33m)[m Merge pull request #72 from KJCOSTA/main
+[33m35ecc9a[m fix: prevent monitor infinite loading with api timeouts
+[33m231dad9[m Merge pull request #71 from KJCOSTA/main
+[33m95936a7[m fix: auth context compatible stubs for dev (build-safe)
+[33m6657337[m fix: auth context compatible stubs for dev (build-safe)
+[33ma8c8c81[m fix: stable auth context bypass (build-safe)
+[33m7a07e8b[m fix: canonical stabilization patch (auth + APIs)
+[33m6412a08[m Update AuthContext byTRUE.tsx
+[33m01a8e57[m Merge pull request #70 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m6e1515d[m Merge pull request #69 from KJCOSTA/main
+[33m8246a31[m Merge branch 'claude/autnew-starter-v1-oyQ1x' into main
+[33mce2fefc[m Update LoginPage GOI.tsx
+[33m64ccc83[m Update LoginPage handle.tsx
+[33m8ae4da4[m Update LoginPage HEANDLE.tsx
+[33m749a184[m Merge pull request #68 from KJCOSTA/main
+[33m5aba741[m Update LoginPage atualizado.tsx
+[33m7f93586[m Merge pull request #67 from KJCOSTA/main
+[33m48af7e6[m Update LoginPage.tsx
+[33m7c13424[m Merge pull request #65 from KJCOSTA/main
+[33m6e8195f[m Update LoginPage.tsx
+[33m41b7f40[m Update LoginPage.tsx
+[33m7c6fcbe[m Merge pull request #64 from KJCOSTA/main
+[33mbdf95b8[m Update LoginPage.tsx
+[33maed8a90[m fix: Corrige svg e fecha tags corretamente no botão GitHub
+[33m2276aba[m fix: Corrige erros de sintaxe no LoginPage.tsx
+[33m78cd399[m Update LoginPage.tsx
+[33m15ce99c[m feat: Adiciona botão de login com GitHub OAuth
+[33m2bb8cd4[m Merge pull request #63 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m1867ee8[m fix: Melhora autenticacao e adiciona endpoint de diagnostico
+[33m20faa13[m Merge pull request #62 from KJCOSTA/claude/check-tools-HLs17
+[33m9c486e3[m[33m ([m[1;31morigin/claude/check-tools-HLs17[m[33m)[m chore: Remove tsbuildinfo files from git tracking
+[33m26bf3f2[m fix: Add ESLint 9 flat config and fix lint error
+[33m28d2e0b[m fix: Corrige typo himport para import em auth.ts
+[33ma3f43df[m fix: Adiciona extensao .js no import do db em health-check
+[33m3b78b73[m fix: Adiciona extensao .js no import do db para ESM
+[33m695a13c[m Merge pull request #61 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mdf03b44[m fix: Corrige credenciais de admin e oculta botao Dev em producao
+[33m17f872b[m Merge pull request #60 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m8e77bc2[m chore: Atualiza arquivos de build do TypeScript
+[33m74f10e2[m feat: Adiciona detalhes expandiveis de erro no login
+[33m1943d39[m Merge pull request #59 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m5dc33f6[m fix: Ativa autenticação real com PostgreSQL
+[33m7dfe0b3[m Merge pull request #58 from KJCOSTA/main
+[33m5ab34d8[m Merge pull request #57 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m5f3f71e[m feat: Adiciona teste real de conexão com APIs
+[33m6054c01[m Merge pull request #55 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m8d59b3f[m Merge branch 'main' into claude/autnew-starter-v1-oyQ1x
+[33ma0d9a98[m chore: Adiciona .env*.local ao .gitignore
+[33m1ea10c3[m chore: Atualiza cache do TypeScript
+[33mfe7ac2c[m feat: Adiciona tela de verificação do sistema antes do login
+[33m4ca1e5c[m Merge pull request #54 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mcea072b[m fix: Simplifica autenticação e adiciona botão de entrada rápida
+[33m21796f8[m Merge pull request #52 from KJCOSTA/vercel/enable-vercel-speed-insights-i-i7lh2w
+[33m24ae924[m Merge pull request #53 from KJCOSTA/main
+[33m0e77f21[m[33m ([m[1;31morigin/vercel/enable-vercel-speed-insights-i-i7lh2w[m[33m)[m Enable Vercel Speed Insights in your project
+[33m3304319[m Merge pull request #51 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m0bbdaed[m feat: Adiciona bypass de autenticação para desenvolvimento
+[33m60c1a63[m fix: Corrige variável não utilizada no auth-debug.ts
+[33m34411c6[m Merge pull request #50 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mbb8fa02[m fix: Corrige autenticação e adiciona recursos Vercel Pro
+[33m7bfdce6[m Merge pull request #49 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m906f1d3[m feat: Otimiza configuração Vercel para plano Pro
+[33m9570188[m Merge pull request #48 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m34f53de[m feat: Adiciona modo bypass temporário e endpoint de debug
+[33m2d7dbbe[m Merge pull request #47 from KJCOSTA/main
+[33ma6ebb0a[m fix: Adiciona await aos handlers async no auth.ts
+[33me743e1e[m Merge pull request #47 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mb146c52[m fix: Adiciona reset automático de senha do admin
+[33mdd9a6fd[m feat: Adiciona endpoint de diagnóstico para autenticação
+[33m5c190d0[m Merge pull request #45 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mc00d71f[m feat: Adiciona endpoint de diagnóstico do banco de dados
+[33m39e05a2[m fix: Usa formato de email válido para credenciais admin
+[33ma8dc689[m Merge pull request #44 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mbaa91f3[m fix: Corrige erros TypeScript e atualiza credenciais
+[33m2b737d4[m Merge pull request #43 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mc64f518[m Merge pull request #42 from KJCOSTA/main
+[33mf0ece81[m Merge pull request #41 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mbf98e7a[m refactor: Consolida APIs para ficar abaixo do limite de 12 Serverless Functions
+[33m86395a1[m Merge pull request #40 from KJCOSTA/main
+[33m1691b5e[m Merge pull request #39 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m8840b26[m fix: Corrige erros de TypeScript para deploy
+[33me7f604e[m fix: Corrige erros de TypeScript no db.ts
+[33mb392061[m Merge pull request #38 from KJCOSTA/main
+[33mf8f0aae[m Merge pull request #37 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33md3b9376[m feat: Implementa persistência com Vercel Postgres
+[33m2925f02[m Merge pull request #36 from KJCOSTA/claude/resume-teleport-session-ckmpN
+[33m5c08ff1[m Merge pull request #35 from KJCOSTA/main
+[33m32a780f[m fix: Adiciona action 'analyze' na API Gemini para Phase 2 Intelligence
+[33m3b5bbb8[m Merge pull request #34 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m371ef27[m Merge pull request #33 from KJCOSTA/main
+[33m16ef22e[m feat: Implementa Health Check real com testes de conexão às APIs
+[33mda981c0[m Merge pull request #32 from KJCOSTA/claude/resume-teleport-session-ckmpN
+[33m2e52c1f[m Merge pull request #31 from KJCOSTA/main
+[33me991bfd[m Merge pull request #30 from KJCOSTA/claude/resume-teleport-session-ckmpN
+[33m2ea4472[m fix: Consolida auth.ts e users.ts para ficar dentro do limite de 12 serverless functions
+[33mb379ec0[m Merge pull request #29 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mf8891b4[m feat: Implementa sistema de autenticação e gestão de usuários
+[33m2328b98[m Merge pull request #28 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mf85b11a[m feat: Implementa Health Check automático de APIs
+[33m6819008[m Merge pull request #27 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m6b85208[m Merge pull request #26 from KJCOSTA/main
+[33m1deb930[m Merge pull request #25 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mba50c68[m feat: Implementa Human-in-the-Loop e melhorias nas diretrizes
+[33ma724718[m Merge pull request #24 from KJCOSTA/main
+[33m33b3214[m Merge pull request #23 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mb389aa8[m Merge pull request #22 from KJCOSTA/main
+[33m324a3d9[m fix: Consolida APIs para ficar dentro do limite de 12 serverless functions
+[33mb479031[m Merge pull request #21 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m3a15e81[m feat: Implementa responsividade mobile completa
+[33mb09e038[m feat: Adiciona APIs server-side e melhora Monitor para Vercel env vars
+[33m4185d81[m Merge pull request #20 from KJCOSTA/main
+[33m032bd4b[m Merge pull request #19 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m6f03391[m fix: Melhora mensagens de erro nas APIs do Monitor
+[33m2b58360[m Merge pull request #18 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m0f1aaba[m fix: Separa completamente modo Teste do modo Produção
+[33m0edbf46[m Merge pull request #17 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m7db314f[m fix: Corrige confusão de terminologia entre Test Mode e Workflow
+[33m87ae27e[m Merge pull request #16 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33me74b240[m fix: Corrige dados mockados no Monitor em modo Produção
+[33m327e46b[m feat: Melhorias completas no Header e UI
+[33me9a4030[m Merge pull request #15 from KJCOSTA/main
+[33m40d0ba3[m Merge pull request #14 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m93d07e5[m fix: Corrige teste de conexão real das APIs no Monitor
+[33m7438402[m Merge pull request #13 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m7f8f06a[m feat: Adiciona teste de locução e atualiza API Claude
+[33mad680e1[m feat: Implementa 3 correções importantes no sistema AUTNEW
+[33m5eee4c2[m Merge pull request #12 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m9fd9505[m feat: Melhora tela de Diretrizes com nova organização
+[33m8e8314e[m Merge pull request #11 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m8234431[m docs: Atualiza env.example com info do app Unsplash configurado
+[33mb058dcd[m feat: Adiciona configuração de ambiente e atualiza modo padrão
+[33m3f5ea7b[m feat: Implementa Motor Híbrido de Economia Inteligente
+[33mfffdeba[m feat: Refatora seção Modo de Operação com 3 modos e modo personalizado
+[33m89e6ce2[m Merge pull request #10 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m9ec7e34[m feat: Implementa modelo YouTube Ready com variações A/B
+[33m3c474d4[m Merge pull request #3 from KJCOSTA/main
+[33mf2a6dbb[m fix: Reorganiza seções do Gatilho - move importar planilha para Dados do Canal
+[33m9855e61[m Merge pull request #9 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33md8c3dc8[m feat: Refatora Phase3Criacao com campos editáveis e controle individual
+[33mcc8ace3[m Merge pull request #8 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mefebdcb[m fix: Reorganiza upload de planilha para Gatilho e mantém apenas Drive nas Configurações
+[33me667f5e[m chore: Atualiza tsbuildinfo
+[33mb69c91c[m Merge pull request #7 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33macd38a1[m feat: Implementa AI Registry central e gestão completa de API Keys
+[33m06dbbe9[m feat: Adiciona diretrizes por ação, modo Full AI e melhorias
+[33m4e13f89[m feat: Adiciona múltiplos concorrentes, perfis de diretrizes e melhora Test Mode
+[33m9683678[m feat: Implementa Test Mode completo em Phase4Estudio
+[33m3faf500[m feat: Adiciona Test Mode e seletor de modelos na Phase3Criacao
+[33m339ebb8[m Merge pull request #6 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mcbe70a6[m fix: Corrige Test Mode e implementa seletor de modelos por ação
+[33md3a7ecd[m feat: Adiciona gestão de canais na Sidebar e melhora Monitor
+[33m929c247[m feat: Adiciona múltiplos concorrentes, perfis de diretrizes e melhora Test Mode
+[33mef57518[m Merge pull request #5 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33mc1b41c4[m chore: Adiciona tsbuildinfo ao gitignore
+[33m0a66eb7[m feat: Implementa Modo Teste (Sandbox) completo
+[33m419e202[m Merge pull request #4 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m32418c3[m fix: Remove todas as variáveis não utilizadas
+[33ma232e51[m fix: Corrige todos os erros de TypeScript (unused vars, tipos)
+[33m0b72f3b[m fix: Adiciona emitDeclarationOnly no tsconfig.node.json
+[33md4527eb[m Merge pull request #2 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33m8bb4aca[m fix: Corrige erros de TypeScript no build do Vercel
+[33md4554d7[m fix: Corrige configuração do vercel.json para deploy
+[33m6c98374[m Merge pull request #1 from KJCOSTA/claude/autnew-starter-v1-oyQ1x
+[33ma376e37[m feat: Sistema AUTNEW Starter V1 completo
+[33m85e5cb8[m feat: Setup inicial do projeto AUTNEW Starter V1
+[33m0cc7b3d[m Create index.html

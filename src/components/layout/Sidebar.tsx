@@ -214,7 +214,7 @@ export function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
                 {/* Channel List */}
                 <div className="p-2">
                   <p className="text-xs text-text-secondary px-2 py-1 mb-1">Seus Canais</p>
-                  {canais.map((c) => (
+                  {(canais || []).map((c) => (
                     <div
                       key={c.nome}
                       className={clsx(
