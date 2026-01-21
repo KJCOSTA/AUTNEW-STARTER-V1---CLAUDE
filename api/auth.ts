@@ -6,7 +6,7 @@ import { sql } from '@vercel/postgres'
 const SESSION_DURATION_HOURS = 720 // 30 dias
 const ADMIN_EMAIL = 'admin@autnew.com'
 
-// Garante tabelas
+// Garante que tabelas existam (Auto-Healing)
 async function ensureTablesExist() {
   try {
     await sql`
@@ -37,9 +37,11 @@ async function ensureTablesExist() {
 }
 
 async function getAdminUser() {
+  // Tenta achar admin
   const result = await sql`SELECT * FROM users WHERE email = ${ADMIN_EMAIL} LIMIT 1`
   if (result.rows.length > 0) return result.rows[0]
   
+  // Se não existir, CRIA
   const hash = await bcrypt.hash('admin123', 10)
   const newAdmin = await sql`
     INSERT INTO users (email, nome, senha_hash, role, ativo, primeiro_acesso)
@@ -53,7 +55,7 @@ async function createSession(userId: string) {
   const token = crypto.randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + SESSION_DURATION_HOURS * 60 * 60 * 1000)
   
-  // FIX: Converte data para ISO string para satisfazer o driver Postgres
+  // FIX: Converte data para String ISO para corrigir erro TS2345
   const expiresIso = expiresAt.toISOString()
 
   await sql`
@@ -64,6 +66,7 @@ async function createSession(userId: string) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Headers CORS para permitir acesso do Frontend
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -74,11 +77,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = body.action || req.query.action
 
   try {
-    // LOGIN
+    // === LOGIN ===
     if (action === 'login') {
       await ensureTablesExist()
 
-      // 1. Google Bypass
+      // 1. Lógica do Google/GitHub (Bypass de Senha)
       if (body.provider === 'google' || body.provider === 'github') {
         console.log('[AUTH] Provider Login:', body.provider)
         const admin = await getAdminUser()
@@ -86,24 +89,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true, token: session.token, user: admin })
       }
 
-      // 2. Senha
+      // 2. Lógica de Senha (Normal)
       const email = body.email
       const password = body.password || body.senha
 
       if (!email || !password) return res.status(400).json({ error: 'Dados incompletos' })
 
       const users = await sql`SELECT * FROM users WHERE email = ${email} LIMIT 1`
-      if (users.rows.length === 0) return res.status(401).json({ error: 'User not found' })
+      if (users.rows.length === 0) return res.status(401).json({ error: 'Usuário não encontrado' })
       
       const user = users.rows[0]
       const valid = await bcrypt.compare(password, user.senha_hash)
-      if (!valid) return res.status(401).json({ error: 'Invalid password' })
+      if (!valid) return res.status(401).json({ error: 'Senha incorreta' })
 
       const session = await createSession(user.id)
       return res.status(200).json({ success: true, token: session.token, user })
     }
 
-    // SESSION CHECK
+    // === VERIFICAR SESSÃO ===
     if (action === 'session') {
       const token = req.headers.authorization?.replace('Bearer ', '')
       if (!token) return res.status(401).json({ error: 'No token' })
@@ -116,14 +119,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         LIMIT 1
       `
       
-      if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid session' })
+      if (result.rows.length === 0) return res.status(401).json({ error: 'Sessão inválida ou expirada' })
       return res.status(200).json({ success: true, user: result.rows[0] })
     }
 
-    return res.status(400).json({ error: 'Invalid action' })
+    return res.status(400).json({ error: 'Ação inválida' })
 
   } catch (e: any) {
-    console.error('Fatal Auth:', e)
+    console.error('Fatal Auth Error:', e)
     return res.status(500).json({ error: e.message })
   }
 }
