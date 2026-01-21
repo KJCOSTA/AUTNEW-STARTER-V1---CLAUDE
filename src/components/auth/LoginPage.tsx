@@ -13,21 +13,27 @@ export function LoginPage() {
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if(!email || !senha) return setError('Preencha todos os campos')
-    
+
     setLoading(true)
     setError('')
-    
+
     try {
+      console.log('[LOGIN] Attempting login for:', email)
       const res = await login({ email, password: senha })
+      console.log('[LOGIN] Login result:', { success: res.success, error: res.error })
+
       if (!res.success) {
+        console.error('[LOGIN] Login failed:', res.error)
         setError(res.error || 'Falha ao entrar')
         setLoading(false)
       } else {
+        console.log('[LOGIN] Login successful, redirecting...')
         // Sucesso! O redirecionamento acontece via AuthContext/App
-        // Mas por segurança, forçamos um reload limpo se nada acontecer
-        setTimeout(() => window.location.href = '/', 500)
+        // Não forçar reload - deixar o React controlar o estado
+        // O App.tsx vai detectar isAuthenticated e renderizar o dashboard
       }
     } catch (e) {
+      console.error('[LOGIN] Login error:', e)
       setError('Erro de conexão')
       setLoading(false)
     }
