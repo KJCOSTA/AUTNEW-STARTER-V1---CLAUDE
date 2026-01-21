@@ -4,9 +4,10 @@ import crypto from 'crypto'
 import { initializeDatabase, userDB, sessionDB, auditDB } from './lib/db'
 
 // Constants
-const ADMIN_EMAIL = 'kleiton@autnew.com'
-const ADMIN_NOME = 'Kleiton'
-const ADMIN_INITIAL_PASSWORD = 'jangada'
+const ADMIN_EMAIL = 'admin@autnew.com'
+const ADMIN_NOME = 'Admin'
+const ADMIN_INITIAL_PASSWORD = 'Admin123!'
+const OLD_ADMIN_EMAIL = 'kleiton@autnew.com' // Para remover usuário antigo
 const SESSION_DURATION_HOURS = 24
 const BCRYPT_SALT_ROUNDS = 12
 
@@ -37,6 +38,15 @@ function getClientInfo(req: VercelRequest) {
 // Initialize database and ensure admin exists
 async function ensureInitialized() {
   await initializeDatabase()
+
+  // Remover usuário admin antigo se existir
+  const oldAdmin = await userDB.findByEmail(OLD_ADMIN_EMAIL)
+  if (oldAdmin) {
+    await sessionDB.deleteByUserId(oldAdmin.id)
+    await userDB.delete(oldAdmin.id)
+    console.log('Usuário admin antigo removido:', OLD_ADMIN_EMAIL)
+  }
+
   const adminHash = await hashPassword(ADMIN_INITIAL_PASSWORD)
   await userDB.ensureAdminExists(ADMIN_EMAIL, ADMIN_NOME, adminHash)
 }
