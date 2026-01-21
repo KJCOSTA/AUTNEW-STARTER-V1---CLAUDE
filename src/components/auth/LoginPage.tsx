@@ -43,7 +43,7 @@ export function LoginPage() {
     setErrorInfo(null)
     setShowErrorDetails(false)
     setIsLoading(true)
-    const result = await login({ email: 'kleiton@autnew.com', senha: 'jangada' })
+    const result = await login({ email: 'admin@autnew.com', senha: 'Admin123!' })
     if (!result.success) {
       setErrorInfo({
         message: result.error || 'Erro ao fazer login',
@@ -53,6 +53,9 @@ export function LoginPage() {
     }
     setIsLoading(false)
   }
+
+  // Verificar se estamos em modo de desenvolvimento
+  const isDevelopment = import.meta.env.DEV
 
   const openDiagnostics = () => {
     window.open('/api/db-health', '_blank')
@@ -229,23 +232,25 @@ export function LoginPage() {
             </Button>
           </form>
 
-          {/* Dev Login Button */}
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full"
-              size="lg"
-              onClick={handleDevLogin}
-              disabled={isLoading}
-            >
-              <Zap className="w-5 h-5 mr-2 text-yellow-400" />
-              Entrar como Admin (Dev)
-            </Button>
-            <p className="text-xs text-text-secondary text-center mt-3">
-              Modo desenvolvimento - acesso direto sem credenciais
-            </p>
-          </div>
+          {/* Dev Login Button - Apenas em desenvolvimento */}
+          {isDevelopment && (
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                size="lg"
+                onClick={handleDevLogin}
+                disabled={isLoading}
+              >
+                <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                Entrar como Admin (Dev)
+              </Button>
+              <p className="text-xs text-text-secondary text-center mt-3">
+                Modo desenvolvimento - acesso direto sem credenciais
+              </p>
+            </div>
+          )}
         </motion.div>
 
         {/* Footer */}
