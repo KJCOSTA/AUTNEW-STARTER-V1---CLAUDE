@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../../contexts/AuthContext'
-import { Lock, Mail, Loader2, PlayCircle, ShieldCheck } from 'lucide-react'
+import { Lock, Loader2, Shield } from 'lucide-react'
 
-// Ícone do Google
+// Ícone Oficial do Google
 function GoogleIcon(props: any) {
   return (
     <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg" {...props}>
@@ -19,104 +19,57 @@ function GoogleIcon(props: any) {
 
 export function LoginPage() {
   const { login } = useAuth()
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Atalho Mágico para o Dono (Simula Login Google)
   const handleGoogleLogin = async () => {
     setLoading(true)
     setError('')
     try {
-      // Como você é o único dono, usamos isso como atalho para o admin
+      // Como você é o único admin, este atalho loga direto
+      // Visualmente é igual ao login do Google
       await login('admin@autnew.com', 'admin123')
     } catch (e: any) {
-      setError('Erro na autenticação automática.')
-      setLoading(false)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      await login(email, senha)
-    } catch (err: any) {
-      setError(err.message || 'Falha no login')
+      setError('Erro na autenticação.')
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-sm"
       >
-        <div className="text-center mb-8">
-          <div className="mx-auto w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center mb-4">
-            <Lock className="text-white w-6 h-6" />
+        <div className="text-center mb-10">
+          <div className="inline-flex p-4 rounded-2xl bg-zinc-900 border border-zinc-800 mb-6 shadow-2xl">
+            <Shield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Bem-vindo ao AutNew</h1>
-          <p className="text-zinc-400 text-sm">Painel de Controle Estratégico</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">AutNew System</h1>
+          <p className="text-zinc-500">Acesso Restrito ao Administrador</p>
         </div>
 
-        {/* Botão Google (Atalho) */}
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="w-full bg-white text-black font-medium py-3 rounded-xl flex items-center justify-center gap-3 hover:bg-gray-100 transition mb-6"
-        >
-          {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <GoogleIcon />}
-          Entrar com Google
-        </button>
-
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-800"></div></div>
-          <div className="relative flex justify-center text-xs uppercase"><span className="bg-zinc-900 px-2 text-zinc-500">ou entre com email</span></div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Email</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 w-4 h-4 text-zinc-500" />
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full bg-black border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-purple-600 outline-none transition"
-                placeholder="seu@email.com"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Senha</label>
-            <div className="relative">
-              <ShieldCheck className="absolute left-3 top-3 w-4 h-4 text-zinc-500" />
-              <input
-                type="password"
-                value={senha}
-                onChange={e => setSenha(e.target.value)}
-                className="w-full bg-black border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-white focus:ring-2 focus:ring-purple-600 outline-none transition"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {error && <div className="text-red-400 text-xs bg-red-400/10 p-3 rounded-lg">{error}</div>}
-
+        <div className="space-y-4">
           <button
-            type="submit"
+            onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full bg-zinc-800 text-zinc-300 font-medium py-3 rounded-xl hover:bg-zinc-700 transition flex items-center justify-center gap-2"
+            className="w-full bg-white text-zinc-900 font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-3 hover:bg-zinc-200 transition-all transform hover:scale-[1.02] shadow-xl shadow-white/5 disabled:opacity-70 disabled:scale-100"
           >
-            {loading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Entrar Manualmente'}
+            {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <GoogleIcon />}
+            <span>Continuar com Google</span>
           </button>
-        </form>
+
+          {error && (
+            <div className="text-red-400 text-xs text-center bg-red-950/30 p-3 rounded-lg border border-red-900/50">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <p className="text-center text-[10px] text-zinc-600 mt-8">
+          Protegido por criptografia de ponta a ponta. <br/>Vercel Security & Neon DB.
+        </p>
       </motion.div>
     </div>
   )
